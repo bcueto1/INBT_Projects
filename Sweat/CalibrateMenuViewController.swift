@@ -11,11 +11,26 @@ import UIKit
 
 class CalibrateMenuViewController: UIViewController {
     
-    let patient = Patient()
+    var patient = Patient()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+    }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if (segue.identifier == "printValueSegue") {
+            let DestViewController = segue.destination as! CalibrateViewController
+            DestViewController.patient = patient
+        }
+        if (segue.identifier == "realTimeSegue") {
+            let DestViewController = segue.destination as! RealTimeCalibrateViewController
+            DestViewController.patient = patient
+        }
+        if (segue.identifier == "loadCalibrateSegue") {
+            let DestViewController = segue.destination as! LoadCalibrateViewController
+            DestViewController.patient = patient
+        }
     }
     
     override func didReceiveMemoryWarning() {

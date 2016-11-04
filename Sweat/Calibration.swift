@@ -11,25 +11,24 @@ import UIKit
 
 class Calibration: NSObject {
     
-    // CUSTOM VARIABLES
+    // ---------- CUSTOM PROPERTIES ----------
     
-    var concStandardText: String = ""  //some text for the concentration standard
-    var concText: String = "" //some text for the concentration measured
-    var voltText: String = "" //some text for the voltage measured
-    var concStandard: Double = 0 //the concentration standard
-    var slope: Double = 0 //slope of the calibration
-    var yint: Double = 0 //y?
-    var rSquared: Double = 0 //Some stat stuff
-    
-    /*
-     init(concStandard: String?, conc: String?, volt: String?) {
-     self.concStandard = concStandard
-     self.conc = conc
-     self.volt = volt
-     }
-     */
-    
-    // CUSTOM FUNCTIONS
+    // Default variable for solution standard text (string) entered by user
+    var concStandardText: String = ""
+    // Default variable for solution standard text (string) entered by user
+    var concText: String = ""
+    // Default variable for solution standard text (string) entered by user
+    var voltText: String = ""
+    // Default variable for solution standard text (string) entered by user
+    var concStandard: Double = 0
+    // Default variable for solution standard text (string) entered by user
+    var slope: Double = 0
+    // Default variable for solution standard text (string) entered by user
+    var yint: Double = 0
+    // Default variable for rsquared (coefficent of determination) (double)
+    var rSquared: Double = 0
+
+    // ---------- CUSTOM FUNCTIONS ----------
     
     func valuesChecker (textField: String?) -> (check: Bool, valuesOptional: [Double?], values: [Double]) {
         let StringValues = textField!.components(separatedBy: " ")

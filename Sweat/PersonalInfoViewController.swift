@@ -12,8 +12,7 @@ import UIKit
 
 class PersonalInfoViewController: UIViewController {
     
-    let patient = Patient()
-    
+    var patient = Patient()
     @IBOutlet weak var idTextField: UITextField!
     @IBOutlet weak var submitButton: UIButton!
     
@@ -23,9 +22,9 @@ class PersonalInfoViewController: UIViewController {
     }
     
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
-        let idAlert = UIAlertController(title: "Alert", message: "Please re-enter your Patient ID properly",
-                                        preferredStyle: .alert)
+        let idAlert = UIAlertController(title: "Alert", message: "Please re-enter your Patient ID properly", preferredStyle: .alert)
         let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+        idAlert.addAction(okAction)
         if (idTextField.text! == "") {
             present(idAlert, animated: true, completion: nil)
             return false
@@ -36,15 +35,20 @@ class PersonalInfoViewController: UIViewController {
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         updatePatientID();
-        
-    }
-    
-    func updatePatientID() {
-        patient.ID = idTextField.text!
+        let DestViewController = segue.destination as! CalibrateMenuViewController
+        DestViewController.patient = patient
     }
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
+    
+    /* -- Custom functions -- */
+    
+    func updatePatientID() {
+        patient.ID = idTextField.text!
+    }
+    
+
 }

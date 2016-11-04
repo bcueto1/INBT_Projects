@@ -10,13 +10,18 @@ import Foundation
 import UIKit
 
 class CalibrateViewController: UIViewController, UITextFieldDelegate {
+
+    // NOTE: The terms variable & property and method & function are used synonymously throughout the comments in ALL files. Not good practice, but should not be confusing with this disclaimer.
     
-    // Enter safety condition for this text field (concStandardTextField) later -- dangerous right now. *****
+    // ---------- CLASSES, PROPERTIES AND BUILT-IN FUNCTIONS ----------
+    
+    // Textfield variable for concentration of standard solution in sensor -- need safety condition for erroneous input by user for this textfield, which can be added to the non-elegant switch cases below.
     @IBOutlet weak var concStandardTextField: UITextField!
     @IBOutlet weak var concTextField: UITextField!
     @IBOutlet weak var voltTextField: UITextField!
     
     let calibration = Calibration()
+    var patient = Patient()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -31,17 +36,7 @@ class CalibrateViewController: UIViewController, UITextFieldDelegate {
         // Dispose of any resources that can be recreated.
     }
     
-    /*
-     // MARK: - Navigation
-     
-     // In a storyboard-based application, you will often want to do a little preparation before navigation
-     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-     // Get the new view controller using segue.destinationViewController.
-     // Pass the selected object to the new view controller.
-     }
-     */
-    
-    // SEGUE FUNCTIONS
+    // -------- SEGUE FUNCTIONS --------
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         let concTuple = calibration.valuesChecker(textField: concTextField.text)
         let voltTuple = calibration.valuesChecker(textField: voltTextField.text)
@@ -54,6 +49,7 @@ class CalibrateViewController: UIViewController, UITextFieldDelegate {
         calibrationAlert.addAction(okAction)
         //calibrationAlert.addAction(cancelAction)
         
+        // Non-elegant switch cases below make sure that the inputs to the textfields made by the user are valid, if they are not valid inputs then a warning pops up telling the user why entries are not valid. Switch cases are based on the booleans .check and equalLength.
         switch true {
         case !equalLength where !equalLength == !concTuple.check && !equalLength == !voltTuple.check:
             calibrationAlert.message = "Please address the following:\n"+"Number of concentration and voltage values not equal\n"+"All concentration values not numeric\n"+"All voltage values not numeric"
@@ -89,8 +85,11 @@ class CalibrateViewController: UIViewController, UITextFieldDelegate {
         }
     }
     
+    //Function notifies the view controller that a segue is about to be performed.
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         updateCalibration()
+        
+        // Passes the instance of the Calibration class created by this view controller to the two tab bar view controlllers: CalibrationViewController and ExperimentViewController. The instance of the Calibration class has all the information entered by the user in the calibrate view controlled by this view controller.
         if (segue.identifier == "calibrateSegue") {
             // Get a reference to the destination view controller
             let tabBarViewController = segue.destination as! UITabBarController
@@ -98,15 +97,18 @@ class CalibrateViewController: UIViewController, UITextFieldDelegate {
             let secondViewController = tabBarViewController.viewControllers![1] as! ExperimentViewController
             firstViewController.calibration = calibration
             secondViewController.calibration = calibration
+            secondViewController.patient = patient
         }
     }
     
-    // TOUCH FUNCTIONS
+    // ------- TOUCH FUNCTIONS --------
     
+    // Gets rid of keyboard when view is tapped outside of keyboard
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         self.view.endEditing(true)
     }
     
+    // Function gets rid of keyboard when return key is pressed
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         textField.resignFirstResponder()
         return true
@@ -114,12 +116,12 @@ class CalibrateViewController: UIViewController, UITextFieldDelegate {
     
     // CUSTOM FUNCTIONS
     
-    func updateCalibration() -> Calibration {
+    func updateCalibration() {
         calibration.concStandardText = concStandardTextField.text!
         calibration.concText = concTextField.text!
         calibration.voltText = voltTextField.text!
+        //Converts concStandardText string to double and passes to calibration.concStandard
         calibration.concStandard = Double(calibration.concStandardText)!
-        return calibration
     }
     
 }

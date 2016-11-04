@@ -21,54 +21,51 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
     
     
     @IBOutlet weak var experimentChartView: LineChartView!
+    @IBOutlet weak var connectButtonOutlet: UIButton!
+    @IBAction func connectButtonAction(sender: UIButton) {
+        launchBool = !launchBool
+        experiment.launchBool = launchBool //true to false, false to true...
+        //check = true
+    }
+    @IBOutlet weak var statusLabel: UILabel!
+    @IBOutlet weak var mVLabel: UILabel!
+    @IBOutlet weak var mMLabel: UILabel!
     
     
     // Integrated email feature
     // Initialization of instances of classes and properties
     // Classes
-    var calibration: Calibration?  //Create a new calibration object
-    var experiment = Experiment()  //Create a new experiment object
+    var calibration: Calibration?
+    var experiment = Experiment()
+    var patient = Patient()
     // Properties
-    var experimentNumber: Int?  //Tells what the experiment number is
-    var bluetoothBool = false  //Tells us if there is a blue tooth or not
-    var timer: Timer? //Timer
-    var thisCharacteristic: CBCharacteristic? //Chracteristic variable from bluetooth
-    var initialMinutes: Double = 0 //Initial time
-    var maxSize: Int = 0 //max size
-    var timeDict = [String:[Double]]() //dictionary of times
-    var voltDict = [String:[Double]]() //dictionary of voltages
-    var concDict = [String:[Double]]() //dictionary of concentrations
-    var timeDictString = [String:[String]]() //dictionary of times to strings
-    var voltDictString = [String:[String]]() //dictionary of voltages to strings
-    var concDictString = [String:[String]]() //dictionary of concentration to strings
+    var experimentNumber: Int?
+    var bluetoothBool = false
+    var timer: Timer?
+    var thisCharacteristic: CBCharacteristic?
+    var initialMinutes: Double = 0
+    var maxSize: Int = 0
+    var timeDict = [String:[Double]]()
+    var voltDict = [String:[Double]]()
+    var concDict = [String:[Double]]()
+    var timeDictString = [String:[String]]()
+    var voltDictString = [String:[String]]()
+    var concDictString = [String:[String]]()
     var timeArray = [Double]() // x values that need to to be plotted, updated within the second function peripheral *********************
-    var minutesArray = [String]() //Array of minutes passed?
+    var minutesArray = [String]()
     var voltArray = [Double]() // doesn't need to be plotted *********************
     var concArray = [Double]() // y values that need to be plotted, updated similarly *********************
-    var timeArrayString = [String]() //String of times
-    var voltArrayString = [String]() //String of voltages
-    var concArrayString = [String]() //String of concentrations
-    var timeMaxArrayString = [String]() //String array of max times
-    var voltMaxArrayString = [String]() //String array of max volts
-    var concMaxArrayString = [String]() //String array of max concentrations
-    var tupleMaxArrayString = [String]() //String array of max tuples
-    var voltsMeasurement: Double = 3 //a start value for volt measurement
-    var voltsMeasurementTest: Double = 3 //a start value for volt measurement test
-    var concMeasurement: Double = 3 //a start value for the concentration measurement
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        // Do any additional setup after loading the view.
-        concentrationLabel.transform = CGAffineTransform(rotationAngle: CGFloat(-M_PI_2)) //rotate the label?
-        experimentNumber = 1 //initialize experiement
-        configureChart() //something to do with charts
-    }
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-    
+    var timeArrayString = [String]()
+    var voltArrayString = [String]()
+    var concArrayString = [String]()
+    var timeMaxArrayString = [String]()
+    var voltMaxArrayString = [String]()
+    var concMaxArrayString = [String]()
+    var tupleMaxArrayString = [String]()
+    var voltsMeasurement: Double = 3
+    var voltsMeasurementTest: Double = 3
+    var concMeasurement: Double = 3
+
     //var check = false
     var launchBool: Bool = false {
         didSet {
@@ -127,16 +124,28 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         }
     }
     
-    /*
-     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-     if (segue.identifier == "backExperimentSegue") {
-     // Get a reference to the destination view controller
-     let destinationViewController: CalibrationViewController = segue.destinationViewController as! CalibrationViewController
-     destinationViewController.calibration = calibration
-     destinationViewController.centralManager = centralManager
-     }
-     }
-     */
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view.
+        concentrationLabel.transform = CGAffineTransform(rotationAngle: CGFloat(-M_PI_2)) //rotate the label?
+        experimentNumber = 1
+        configureChart()
+    }
+    
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+    
+    // -------- Custom Functions ----------
+    
+    func convertVoltToConc(volt: Double, slope: Double, yint: Double, concStandard: Double) -> Double {
+        let exponent = (volt - yint) / slope
+        let conc = concStandard * pow(10.0,exponent)
+        return conc
+    }
+    
+    // ----------- Segue Functions ----------
     
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         // ALERT CODE
@@ -161,43 +170,25 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         }
     }
     
-    func convertVoltToConc(volt: Double, slope: Double, yint: Double, concStandard: Double) -> Double {
-        let exponent = (volt - yint) / slope
-        let conc = concStandard * pow(10.0,exponent)
-        return conc
-    }
-    
-    @IBOutlet weak var connectButtonOutlet: UIButton!
-    
-    @IBAction func connectButtonAction(sender: UIButton) {
-        launchBool = !launchBool
-        experiment.launchBool = launchBool //true to false, false to true...
-        //check = true
-    }
+
     
     
-    @IBOutlet weak var statusLabel: UILabel!
-    
-    @IBOutlet weak var mVLabel: UILabel!
-    
-    @IBOutlet weak var mMLabel: UILabel!
-    
+    // ------- BLUETOOTH --------
     
     // BLE properties
     var centralManager : CBCentralManager!
     var sensorPeripheral : CBPeripheral!
-    
-    
+
     // Services and characteristics of interest
     let adcUUID = "A6322521-EB79-4B9F-9152-19DAA4870418"
     let voltUUID = "F90EA017-F673-45B8-B00B-16A088A2ED62"
-    
+
     func stopScan() {
         self.centralManager.stopScan()
         timer?.invalidate()
         timer = nil
     }
-    
+
     // Check status of BLE hardware
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == CBManagerState.poweredOn && launchBool == true {
@@ -213,8 +204,7 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             print("Bluetooth switched off or not initialized")
         }
     }
-    
-    
+
     // Check out the discovered peripherals to find sensor
     func centralManager(central: CBCentralManager, didDiscoverPeripheral peripheral: CBPeripheral, advertisementData: [String : AnyObject], RSSI: NSNumber) {
         
@@ -404,32 +394,10 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         self.statusLabel.text = "Disconnected"
         self.mVLabel.text = "0.00 mV"
         self.mMLabel.text = "0.00 mM"
-        //    central.scanForPeripheralsWithServices(nil, options: nil)
+        //central.scanForPeripheralsWithServices(nil, options: nil)
     }
     
-    /*
-     // MARK: - Navigation
-     
-     // In a storyboard-based application, you will often want to do a little preparation before navigation
-     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-     // Get the new view controller using segue.destinationViewController.
-     // Pass the selected object to the new view controller.
-     }
-     */
-    
-    /*
-     func updateText(notification: NSNotification, voltsMeasurementTest: Double, concMeasurement: Double) {
-     self.mVLabel.text = "\(voltsMeasurementTest) mV"
-     self.mMLabel.text = "\(round(100*concMeasurement)/100) mM"
-     }
-     
-     override func viewDidAppear(animated: Bool) {
-     super.viewDidAppear(true)
-     NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(ExperimentViewController.updateText), name: "UpdateTimer", object: nil)
-     }
-     */
-    
-    // EMAIL
+    // ------- EMAIL ----------
     
     @IBAction func emailButtonAction(sender: AnyObject) {
         let mailComposeViewController = configuredMailComposeViewController()
@@ -521,8 +489,9 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         controller.dismiss(animated: false, completion: nil)
     }
     
-    // CHARTS
+    // -------CHARTS -----
     
+    // Function containing chart configuration based on the third-party Charts framework. These can be changed to your convenience.
     func configureChart() {
         //Chart config
         experimentChartView.leftAxis.axisMinimum = 0

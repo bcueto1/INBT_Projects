@@ -13,91 +13,75 @@ import Charts
 
 class CalibrationViewController: UIViewController, ChartViewDelegate {
     
+    // ----- Classes, properties, and built in functions -----
+    // Label variable for calibration fit
     @IBOutlet weak var equationLabel: UILabel!
-    
+    //Label variable for coefficent of determination
     @IBOutlet weak var rsquaredLabel: UILabel!
-    
+    //View variable for plto showing claibration curve
     @IBOutlet weak var calibrationChartView: LineChartView!
-    
-    
+    //Label variable for voltage y-axis label
     @IBOutlet weak var voltageLabel: UILabel!
     
     var calibration: Calibration?
     var experiment = Experiment()
-    //var centralManager: CBCentralManager?
     
-    /*
-     let concStandard = Double(calibration.concStandard!) ?? 1000
-     let concTuple = calibration.valuesChecker(concTextField.text)
-     let voltTuple = valuesChecker(voltTextField.text)
-     let concValuesScaled = convertConcToLogConc(concStandard, concentration: concTuple.values)
-     let equation = leastSquaresRegression(concValuesScaled, voltage: voltTuple.values)
-     let slopeRounded = round(1000 * equation.slope) / 1000
-     let yintRounded = round(1000 * equation.yint) / 1000
-     let rSquaredRounded = round(1000 * equation.rSquared) / 1000
-     destinationVC.equationLabelText = "v = \(slopeRounded)c\(yintRounded)"
-     destinationVC.rsquaredLabelText = "R"+"\u{00B2}"+" = "+"\(rSquaredRounded)"
-     */
-    
-    
-    /*
-     var concStandard: Double = 0
-     var slope: Double = 0
-     var yint: Double = 0
-     
-     var equationLabelText: String = ""
-     var rsquaredLabelText: String = ""
-     */
-    
+    // Built-in function to do stuff when view is loaded.
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
+        
+        // ---------- CALIBRATION PARAMETERS AND FIT RESULTS ----------
+        
+        // Rotates voltage label 90 degrees so that it looks nice next to the plot.
         voltageLabel.transform = CGAffineTransform(rotationAngle: CGFloat(-M_PI_2))
-        let concValues = calibration!.concText.components(separatedBy: " ")
+        
+        // Extracts double values of concentration and volt parametes of calibration run by user.
+        //let concValues = calibration!.concText.components(separatedBy: " ")
         let concTuple = calibration!.valuesChecker(textField: calibration!.concText)
         let voltTuple = calibration!.valuesChecker(textField: calibration!.voltText)
         let concValuesScaled = calibration!.convertConcToLogConc(standard: calibration!.concStandard, concentration: concTuple.values)
         let voltValues = voltTuple.values
+        
+        // Takes concentration and voltage values of calibration and runs a least squares regression using the custom function leastSquaresRegression belonging to the Calibration class.
         let equation = calibration!.leastSquaresRegression(concentration: concValuesScaled, voltage: voltTuple.values)
+        
+        // Assigns results from the function leastSquaresRegression contained by the variable "equation" above to linear fit and rsquared parameters.
         calibration!.slope = equation.slope
         calibration!.yint = equation.yint
         calibration!.rSquared = equation.rSquared
+        
+        // Rounds calibration fit paramets to the nearest thousandth
         let slopeRounded = round(1000 * calibration!.slope) / 1000
         let yintRounded = round(1000 * calibration!.yint) / 1000
         let rSquaredRounded = round(1000 * calibration!.rSquared) / 1000
+        
+        // Assigns paramets to equation and rsquared text labels.
         equationLabel.text = "v = \(slopeRounded)c\(yintRounded)"
         rsquaredLabel.text = "R"+"\u{00B2}"+" = "+"\(rSquaredRounded)"
-        //let barViewControllers = self.tabBarController?.viewControl
-        //let tabBarController = UITabBarController()
-        //let experimentViewControllerReference = tabBarController.viewControllers![1] as! ExperimentViewController
         
+        // Shares experiment (instance of Experiment class) between CalibrationViewController and ExperimentViewController.
         let barViewControllers = self.tabBarController?.viewControllers
         let experimentViewControllerReference = barViewControllers![1] as! ExperimentViewController
         experimentViewControllerReference.experiment = self.experiment  //shared model
         
+        //Function configures chart.
         configureChart()
         
-        // NECESSARY?
+        // -------- DISPLAYING THE CALIBRATION PLOT -------
         
-        //let concMutableArray = NSMutableArray()
-        //let voltMutableArray = NSMutableArray()
-        
-        //concValuesScaled = concMutableArray as NSArray as! [Double]
-        //voltValues = voltMutableArray as NSArray as! [Double]
-        
-        // SET DATA
-        
-        //creates an array of data entries
+        //creates an array of data entries to contain volt values
         var yValues : [ChartDataEntry] = [ChartDataEntry]()
         
+        //Assigns volt values of calibration to variable yValues.
         for i in 0..<voltValues.count {
             yValues.append(ChartDataEntry(x: voltValues[i], y: Double(i)))
         }
         
-        //create a data set with array
+        //create a data set with array of voltage values.
         let ySet: LineChartDataSet = LineChartDataSet(values: yValues, label: "")
         
-        // line chart config
+        // line chart configuration.
         ySet.axisDependency = .left
         ySet.setColor(UIColor.blue)
         ySet.setCircleColor(UIColor.blue)
@@ -110,34 +94,27 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         var dataSets : [LineChartDataSet] = [LineChartDataSet]()
         dataSets.append(ySet)
 
+        //Data object that has all data corresponding to the calibration plot
         let data: LineChartData = LineChartData(dataSets: dataSets)
         
-        // finally set data
+        // Passes the concentration (x) and voltage (y) calibration data to the property data of calibrationChartView.
         self.calibrationChartView.data = data
     }
-    
-    /*
-     override func viewWillAppear(animated: Bool) {
-     // Updates the view controller interface using the updated model
-     let slopeRounded = round(1000 * calibration!.slope) / 1000
-     let yintRounded = round(1000 * calibration!.yint) / 1000
-     let rSquaredRounded = round(1000 * calibration!.rSquared) / 1000
-     equationLabel.text = "v = \(slopeRounded)c\(yintRounded)"
-     rsquaredLabel.text = "R"+"\u{00B2}"+" = "+"\(rSquaredRounded)"
-     equationLabel.text = "v = \(slopeRounded)c\(yintRounded)"
-     rsquaredLabel.text = "R"+"\u{00B2}"+" = "+"\(rSquaredRounded)"
-     
-     }*/
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
     
+    // ------ SEGUE FUNCTIONS -----
+    
+    // Function determines whether the segue with the specified identifier should be performed.
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
-        // ALERT CODE
+        // calibrationAlert1 variable corresponding to instructions if current experiment is running and the user wants to go back to the calibrate view.
         let calibrationAlert1 = UIAlertController(title: "Alert", message: "Please stop current experiment to start new session or view last session", preferredStyle: .alert)
+        // calibrationAlert2 variable corresponding to warning for user that experiment data has not been saved. Data should be emailed from experiment view to not lose data captured.
         let calibrationAlert2 = UIAlertController(title: "Alert", message: "You have data that hasn't been emailed. All data will be lost. Do you wish to proceed?", preferredStyle: .alert)
+        // Six lines below correspond to alert setup
         let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
         let yesAction = UIAlertAction(title: "Yes", style: .default, handler: {[weak self](action) -> Void in self?.performSegue(withIdentifier: "recalibrateSegue", sender: self)})
         let cancelAction = UIAlertAction(title: "Cancel", style: .default, handler: nil)
@@ -145,7 +122,7 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         calibrationAlert2.addAction(yesAction)
         calibrationAlert2.addAction(cancelAction)
         
-        //calibrationAlert.addAction(cancelAction)
+        // Conditions for the two different alerts to pop up for user based on launchBool (a property of the Experiment class)
         if  experiment.launchBool == true {
             present(calibrationAlert1, animated: true, completion: nil)
             return false
@@ -157,77 +134,15 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         }
     }
     
-    /* IMPLEMENT ALERT IF TRYING TO GO HOME WHILE EXPERIMENT IS RUNNING
-     override func shouldPerformSegueWithIdentifier(identifier: String, sender: AnyObject!) -> Bool {
-     // ALERT CODE
-     let calibrationAlert = UIAlertController(title: "Alert", message: "Please stop current session", preferredStyle: .Alert)
-     let okAction = UIAlertAction(title: "OK", style: .Default, handler: nil)
-     //let cancelAction = UIAlertAction(title: "Cancel", style: .Cancel, handler: nil)
-     calibrationAlert.addAction(okAction)
-     //calibrationAlert.addAction(cancelAction)
-     if experimentViewControllerReference.check == false && experimentViewControllerReference.launchBool == true {
-     presentViewController(calibrationAlert, animated: true, completion: nil)
-     return false
-     } else {
-     return true
-     }
-     }
-     */
+    // -------- CHARTS ----------
     
-    
-    /*
-     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-     if (segue.identifier == "calibrationSegue") {
-     // Get a reference to the destination view controller
-     let destinationViewController: ExperimentViewController = segue.destinationViewController as! ExperimentViewController
-     destinationViewController.calibration = calibration
-     destinationViewController.centralManager = centralManager
-     }
-     }
-     */
-    
-    
-    /*
-     // MARK: - Navigation
-     
-     // In a storyboard-based application, you will often want to do a little preparation before navigation
-     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-     // Get the new view controller using segue.destinationViewController.
-     // Pass the selected object to the new view controller.
-     }
-     */
-    
-    // CUSTOM FUNCTIONS
-    
-    
-    /*
-     func calibrator() -> (equationLabelText: String, rsquaredLabelTextString {
-     let calibration = Calibration()
-     let concStandard = Double(calibration.concStandard!) ?? 1000
-     let concTuple = calibration.valuesChecker(calibration.conc)
-     let voltTuple = calibration.valuesChecker(calibration.volt)
-     let concValuesScaled = calibration.convertConcToLogConc(concStandard, concentration: concTuple.values)
-     let equation = calibration.leastSquaresRegression(concValuesScaled, voltage: voltTuple.values)
-     let slopeRounded = round(1000 * equation.slope) / 1000
-     let yintRounded = round(1000 * equation.yint) / 1000
-     
-     
-     }
-     */
-    
-    // CHARTS
-    
+    // Function contiaining chart configuration based on the third-party Charts framework.
     func configureChart() {
         //Chart config
         calibrationChartView.leftAxis.axisMinimum = 0
         calibrationChartView.xAxis.axisMinimum = 0
-        //calibrationChartView.leftAxis.valueFormatter = NumberFormatter()
-        //calibrationChartView.leftAxis.valueFormatter?.minimumFractionDigits = 1
-        
         calibrationChartView.leftAxis.valueFormatter = DefaultAxisValueFormatter(decimals: 1)
         calibrationChartView.chartDescription?.text = ""
-        
-        //calibrationChartView.noDataTextDescription = "No Data"
         calibrationChartView.noDataText = "No Data"
         calibrationChartView.dragEnabled = true
         calibrationChartView.rightAxis.enabled = false

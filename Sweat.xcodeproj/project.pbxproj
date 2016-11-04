@@ -134,15 +134,15 @@
 		D3F8A5DE1DBE6BAF003389EA /* Sweat */ = {
 			isa = PBXGroup;
 			children = (
-				D3F8A5FB1DBE7DE0003389EA /* PersonalInfoViewController.swift */,
 				D3ACFAAB1DC91A1800F40875 /* Patient.swift */,
-				D3F8A5F71DBE7769003389EA /* ViewController.swift */,
 				D3F8A5DF1DBE6BB0003389EA /* AppDelegate.swift */,
 				D3F8A5F31DBE6EEC003389EA /* Experiment.swift */,
 				D3F8A5FD1DBE7EE8003389EA /* Calibration.swift */,
 				D3F8A5E51DBE6BB0003389EA /* Main.storyboard */,
 				D3F8A5EA1DBE6BB0003389EA /* LaunchScreen.storyboard */,
 				D3F8A5E81DBE6BB0003389EA /* Assets.xcassets */,
+				D3F8A5F71DBE7769003389EA /* ViewController.swift */,
+				D3F8A5FB1DBE7DE0003389EA /* PersonalInfoViewController.swift */,
 				D3ACFAA91DC91A0F00F40875 /* CalibrateMenuViewController.swift */,
 				D3ACFAAF1DC91DC600F40875 /* LoadCalibrateViewController.swift */,
 				D350B80E1DBFC317000BF1E3 /* CalibrateViewController.swift */,
