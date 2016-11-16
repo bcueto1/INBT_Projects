@@ -89,7 +89,6 @@ class CalibrateViewController: UIViewController, UITextFieldDelegate {
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         updateCalibration()
         
-        // Passes the instance of the Calibration class created by this view controller to the two tab bar view controlllers: CalibrationViewController and ExperimentViewController. The instance of the Calibration class has all the information entered by the user in the calibrate view controlled by this view controller.
         if (segue.identifier == "calibrateSegue") {
             // Get a reference to the destination view controller
             let tabBarViewController = segue.destination as! UITabBarController

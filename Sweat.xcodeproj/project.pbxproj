@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D30AE8381DDBA28900DA05CF /* LoadCalibrateViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30AE8371DDBA28800DA05CF /* LoadCalibrateViewController.swift */; };
 		D350B80F1DBFC318000BF1E3 /* CalibrateViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D350B80E1DBFC317000BF1E3 /* CalibrateViewController.swift */; };
 		D350B8111DBFC78E000BF1E3 /* CalibrationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D350B8101DBFC78E000BF1E3 /* CalibrationViewController.swift */; };
 		D350B82E1DBFCD1D000BF1E3 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D350B8291DBFCD09000BF1E3 /* Charts.framework */; };
@@ -15,7 +16,6 @@
 		D3ACFAAA1DC91A0F00F40875 /* CalibrateMenuViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3ACFAA91DC91A0F00F40875 /* CalibrateMenuViewController.swift */; };
 		D3ACFAAC1DC91A1800F40875 /* Patient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3ACFAAB1DC91A1800F40875 /* Patient.swift */; };
 		D3ACFAAE1DC91C3C00F40875 /* RealTimeCalibrateViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3ACFAAD1DC91C3C00F40875 /* RealTimeCalibrateViewController.swift */; };
-		D3ACFAB01DC91DC600F40875 /* LoadCalibrateViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3ACFAAF1DC91DC600F40875 /* LoadCalibrateViewController.swift */; };
 		D3F8A5E01DBE6BB0003389EA /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3F8A5DF1DBE6BB0003389EA /* AppDelegate.swift */; };
 		D3F8A5E71DBE6BB0003389EA /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D3F8A5E51DBE6BB0003389EA /* Main.storyboard */; };
 		D3F8A5E91DBE6BB0003389EA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D3F8A5E81DBE6BB0003389EA /* Assets.xcassets */; };
@@ -72,6 +72,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D30AE8371DDBA28800DA05CF /* LoadCalibrateViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCalibrateViewController.swift; sourceTree = "<group>"; };
 		D350B80E1DBFC317000BF1E3 /* CalibrateViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CalibrateViewController.swift; sourceTree = "<group>"; };
 		D350B8101DBFC78E000BF1E3 /* CalibrationViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CalibrationViewController.swift; sourceTree = "<group>"; };
 		D350B8221DBFCD08000BF1E3 /* Charts.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Charts.xcodeproj; path = "../../iOS_Libraries/Charts/Charts-master/Charts.xcodeproj"; sourceTree = "<group>"; };
@@ -79,7 +80,6 @@
 		D3ACFAA91DC91A0F00F40875 /* CalibrateMenuViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CalibrateMenuViewController.swift; sourceTree = "<group>"; };
 		D3ACFAAB1DC91A1800F40875 /* Patient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Patient.swift; sourceTree = "<group>"; };
 		D3ACFAAD1DC91C3C00F40875 /* RealTimeCalibrateViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RealTimeCalibrateViewController.swift; sourceTree = "<group>"; };
-		D3ACFAAF1DC91DC600F40875 /* LoadCalibrateViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCalibrateViewController.swift; sourceTree = "<group>"; };
 		D3F8A5DC1DBE6BAF003389EA /* Sweat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sweat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3F8A5DF1DBE6BB0003389EA /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		D3F8A5E61DBE6BB0003389EA /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -144,8 +144,8 @@
 				D3F8A5F71DBE7769003389EA /* ViewController.swift */,
 				D3F8A5FB1DBE7DE0003389EA /* PersonalInfoViewController.swift */,
 				D3ACFAA91DC91A0F00F40875 /* CalibrateMenuViewController.swift */,
-				D3ACFAAF1DC91DC600F40875 /* LoadCalibrateViewController.swift */,
 				D350B80E1DBFC317000BF1E3 /* CalibrateViewController.swift */,
+				D30AE8371DDBA28800DA05CF /* LoadCalibrateViewController.swift */,
 				D3ACFAAD1DC91C3C00F40875 /* RealTimeCalibrateViewController.swift */,
 				D350B8101DBFC78E000BF1E3 /* CalibrationViewController.swift */,
 				D350B8321DBFDAC0000BF1E3 /* ExperimentViewController.swift */,
@@ -261,7 +261,7 @@
 			files = (
 				D3ACFAAE1DC91C3C00F40875 /* RealTimeCalibrateViewController.swift in Sources */,
 				D350B8111DBFC78E000BF1E3 /* CalibrationViewController.swift in Sources */,
-				D3ACFAB01DC91DC600F40875 /* LoadCalibrateViewController.swift in Sources */,
+				D30AE8381DDBA28900DA05CF /* LoadCalibrateViewController.swift in Sources */,
 				D350B8331DBFDAC0000BF1E3 /* ExperimentViewController.swift in Sources */,
 				D3F8A5FC1DBE7DE0003389EA /* PersonalInfoViewController.swift in Sources */,
 				D3F8A5F81DBE7769003389EA /* ViewController.swift in Sources */,

@@ -92,8 +92,8 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
                     experiment.emailBool = false
                     print(voltDict)
                     connectButtonOutlet.setTitle("Start Experiment \(experimentNumber!)", for: .normal)
-                    self.sensorPeripheral.setNotifyValue(false, for: thisCharacteristic!)
-                    self.centralManager.cancelPeripheralConnection(sensorPeripheral)
+                    self.sensorPeripheral?.setNotifyValue(false, for: thisCharacteristic!)
+                    self.centralManager.cancelPeripheralConnection(sensorPeripheral!)
                     
                 } else if timer != nil {
                     print("coooooool")
@@ -177,7 +177,7 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
     
     // BLE properties
     var centralManager : CBCentralManager!
-    var sensorPeripheral : CBPeripheral!
+    var sensorPeripheral : CBPeripheral?
 
     // Services and characteristics of interest
     let adcUUID = "A6322521-EB79-4B9F-9152-19DAA4870418"
@@ -206,35 +206,29 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
     }
 
     // Check out the discovered peripherals to find sensor
-    func centralManager(central: CBCentralManager, didDiscoverPeripheral peripheral: CBPeripheral, advertisementData: [String : AnyObject], RSSI: NSNumber) {
-        
+    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         let deviceName = "BlueVolt"
-        let nameOfDeviceFound = (advertisementData as NSDictionary).object(forKey: CBAdvertisementDataLocalNameKey) as? NSString
-        /*
-         if timer == 10 {
-         self.centralManager.stopScan()
-         timer!.invalidate()
-         timer = nil
-         print("cool timer stop")
-         }
-         */
-        if (nameOfDeviceFound?.isEqual(to: deviceName))!{
+        let nameOfDeviceFound = peripheral.name
+
+        
+        if (nameOfDeviceFound == deviceName) {
             // Update Status Label
             self.statusLabel.text = "Sensor Found"
-            
+            // Set as the peripheral to use and establish connection
+            let tempPeripheral: CBPeripheral = peripheral
+            self.sensorPeripheral = tempPeripheral
+            self.sensorPeripheral?.delegate = self
+            self.centralManager.connect(tempPeripheral, options: nil)
             // Stop scanning
             self.centralManager.stopScan()
-            // Set as the peripheral to use and establish connection
-            self.sensorPeripheral = peripheral
-            self.sensorPeripheral.delegate = self
-            self.centralManager.connect(peripheral, options: nil)
         }
         else {
             self.statusLabel.text = "Sensor NOT Found"
         }
+        
+        
     }
-    
-    
+
     // Discover services of the peripheral
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         self.statusLabel.text = "Discovering peripheral services"
@@ -276,7 +270,7 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             // check for data characteristic
             if String(describing: thisCharacteristic!.uuid) == voltUUID {
                 // Enable Sensor Notification
-                self.sensorPeripheral.setNotifyValue(true, for: thisCharacteristic!)
+                self.sensorPeripheral?.setNotifyValue(true, for: thisCharacteristic!)
                 print("Works!!!")
             }
             print(thisCharacteristic!.uuid)
@@ -291,22 +285,6 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         
         if String(describing: characteristic.uuid) == voltUUID { // Real time plotting can probably occur within this if closure, this is where i append the received data to the arrays initialized at the beginning -- you can probably append these values to the plot views *********************
             
-            /*
-             let date = NSDate()
-             let calendar = NSCalendar.currentCalendar()
-             //let dataFormatter = NSDateFormatter()
-             //dataFormatter.dateFormat = "HH:mm:SSS"
-             let components = calendar.components([.Hour, .Minute, .Second, .Nanosecond], fromDate: date)
-             let hours = components.hour
-             let minutes = components.minute
-             let seconds = components.second
-             let nanoseconds = components.nanosecond
-             print(hours)
-             print(minutes)
-             print(seconds)
-             print(nanoseconds)
-             */
-            
             let date = NSDate()
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "HH:mm:ss:SSS"
@@ -319,11 +297,6 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             let minutes = timeStampDoubleArray[0]*60 + timeStampDoubleArray[1] + seconds/60
             print(timeStamp)
             print(minutes)
-            
-            // TIME ARRAYS
-            
-            //let hoursArray =
-            //let minutesArray =
             
             // Convert NSData to array of signed 16 bit values
             let dataBytes = characteristic.value!

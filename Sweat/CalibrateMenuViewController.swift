@@ -15,7 +15,6 @@ class CalibrateMenuViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -24,12 +23,12 @@ class CalibrateMenuViewController: UIViewController {
             DestViewController.patient = patient
         }
         if (segue.identifier == "realTimeSegue") {
-            let DestViewController = segue.destination as! RealTimeCalibrateViewController
-            DestViewController.patient = patient
+            let DestViewControllerTwo = segue.destination as! RealTimeCalibrateViewController
+            DestViewControllerTwo.patient = patient
         }
         if (segue.identifier == "loadCalibrateSegue") {
-            let DestViewController = segue.destination as! LoadCalibrateViewController
-            DestViewController.patient = patient
+            let DestViewControllerThree = segue.destination as! LoadCalibrateViewController
+            DestViewControllerThree.patient = patient
         }
     }
     

@@ -24,5 +24,24 @@ class LoadCalibrateViewController: UIViewController {
         // Dispose of any resources that can be recreated.
     }
     
+    //Function notifies the view controller that a segue is about to be performed.
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        getCalibration()
+
+        if (segue.identifier == "calibrateSegue") {
+            // Get a reference to the destination view controller
+            let tabBarViewController = segue.destination as! UITabBarController
+            let firstViewController = tabBarViewController.viewControllers![0] as! CalibrationViewController
+            let secondViewController = tabBarViewController.viewControllers![1] as! ExperimentViewController
+            firstViewController.calibration = calibration
+            secondViewController.calibration = calibration
+            secondViewController.patient = patient
+        }
+    }
+    
+    func getCalibration() {
+        
+    }
+    
     
 }

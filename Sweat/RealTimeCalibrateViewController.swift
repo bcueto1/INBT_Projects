@@ -10,11 +10,8 @@ import Foundation
 import UIKit
 import CoreBluetooth
 
-extension String {
-    
-}
-
-class RealTimeCalibrateViewController: UIViewController {
+class RealTimeCalibrateViewController: UIViewController,
+    CBCentralManagerDelegate, CBPeripheralDelegate {
     
     /* -- Declare Variables and Outlets -- */
     let calibration = Calibration()
@@ -23,9 +20,13 @@ class RealTimeCalibrateViewController: UIViewController {
     var concStandardValue: Double = 0
     var concValue: Double = 0
     var voltValue: Double = 0
+    var voltArray = [Double]()
     var concStandardValueString: String = ""
     var concValueString: String = ""
     var voltValueString: String = ""
+    var timer: Timer?
+    var bluetoothBool = false
+    var thisCharacteristic: CBCharacteristic?
     @IBOutlet weak var enterConcValue: UILabel!
     @IBOutlet weak var enterConcValueTextField: UITextField!
     @IBOutlet weak var enterVoltLabel: UILabel!
@@ -39,28 +40,41 @@ class RealTimeCalibrateViewController: UIViewController {
     @IBOutlet weak var refValueLabel: UILabel!
     @IBOutlet weak var refValueTextField: UITextField!
     @IBOutlet weak var enterRefValue: UIButton!
-    
-    
-    //--- Main/Segue functions -- 
+    @IBOutlet weak var statusLabel: UILabel!
+
+    var launchBool: Bool = false {
+        didSet {
+            if launchBool == true {
+                startRun.setTitle("Start", for: .normal)
+                // Initialize central manager on load
+                centralManager = CBCentralManager(delegate: self, queue: nil)
+            } else {
+                if self.sensorPeripheral != nil {
+                    startRun.setTitle("Start", for: .normal)
+                    self.sensorPeripheral?.setNotifyValue(false, for: thisCharacteristic!)
+                    self.centralManager.cancelPeripheralConnection(sensorPeripheral!)
+                    getVoltValue()
+                    voltLabel.text = String(voltValue)
+                    controlView.backgroundColor = UIColor.green
+                    controlViewLabel.text = "READY"
+                } else if timer != nil {
+                    stopScan()
+                    startRun.setTitle("Start", for: .normal)
+                    self.statusLabel.text = "Disconnected"
+                } else {
+                    stopScan()
+                    startRun.setTitle("Start", for: .normal)
+                    self.statusLabel.text = "Peripheral not advertising properly, try again"
+                }
+            }
+        }
+    }
+
+    //--- Main/Segue functions -----//
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
-        
-        enterConcValue.isHidden = true
-        enterConcValueTextField.isHidden = true
-        enterVoltLabel.isHidden = true
-        voltView.isHidden = true
-        voltLabel.isHidden = true
-        startRun.isHidden = true
-        controlView.isHidden = true
-        controlViewLabel.isHidden = true
-        enterRun.isHidden = true
-        calibrateButton.isHidden = true
-        refValueLabel.isHidden = false
-        refValueTextField.isHidden = false
-        enterRefValue.isHidden = false
-        canEnterData()
+        setHiddens()
     }
 
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
@@ -77,7 +91,6 @@ class RealTimeCalibrateViewController: UIViewController {
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         updateCalibration()
-        // Passes the instance of the Calibration class created by this view controller to the two tab bar view controlllers: CalibrationViewController and ExperimentViewController. The instance of the Calibration class has all the information entered by the user in the calibrate view controlled by this view controller.
         if (segue.identifier == "calibrateSegue") {
             // Get a reference to the destination view controller
             let tabBarViewController = segue.destination as! UITabBarController
@@ -91,7 +104,6 @@ class RealTimeCalibrateViewController: UIViewController {
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
     
     /* ----- UI Functions ------ */
@@ -99,21 +111,7 @@ class RealTimeCalibrateViewController: UIViewController {
         if Double(refValueTextField.text!) != nil {
             concStandardValue = Double(refValueTextField.text!)!
             concStandardValueString += String(concStandardValue)
-
-            //Unhide rest of features/hide the reference stuff
-            enterConcValue.isHidden = false
-            enterConcValueTextField.isHidden = false
-            enterVoltLabel.isHidden = false
-            voltView.isHidden = false
-            voltLabel.isHidden = false
-            startRun.isHidden = false
-            controlView.isHidden = false
-            controlViewLabel.isHidden = false
-            enterRun.isHidden = false
-            calibrateButton.isHidden = false
-            refValueLabel.isHidden = true
-            refValueTextField.isHidden = true
-            enterRefValue.isHidden = true
+            setNotHiddens()
         } else {
             let alert = UIAlertController(title: "Alert", message: "Please enter valid reference", preferredStyle: .alert)
             let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
@@ -124,10 +122,15 @@ class RealTimeCalibrateViewController: UIViewController {
 
     @IBAction func startisPressed(_ sender: Any) {
         if Double(enterConcValueTextField.text!) != nil {
+            voltArray.removeAll()
             controlView.backgroundColor = UIColor.red
-            controlViewLabel.text = "STOP"
+            controlViewLabel.text = "WAIT"
             concValue = Double(enterConcValueTextField.text!)!
-            voltValue = getVoltValue(cValue: concValue)
+            launchBool = true
+            timer = Timer.scheduledTimer(timeInterval: 60, target: self, selector: #selector(stopScan), userInfo: nil, repeats: true)
+            launchBool = false
+            getVoltValue()
+            voltLabel.text = String(voltValue)
             controlView.backgroundColor = UIColor.green
             controlViewLabel.text = "READY"
         } else {
@@ -136,42 +139,78 @@ class RealTimeCalibrateViewController: UIViewController {
             alert.addAction(okAction)
             present(alert, animated: true, completion: nil)
         }
-        canEnterData()
     }
 
     @IBAction func enterIsPressed(_ sender: Any) {
-        dataCounter += 1
-        concValueString += String(concValue) + " "
-        voltValueString += String(voltValue) + " "
+        if (controlView.backgroundColor == UIColor.green) {
+            dataCounter += 1
+            concValueString += String(concValue) + " "
+            voltValueString += String(voltValue) + " "
+            voltArray.removeAll()
+            controlView.backgroundColor = UIColor.red
+            controlViewLabel.text = "WAIT"
+        } else {
+            let enterAlert = UIAlertController(title: "Alert", message: "Data not allowed to be entered yet.", preferredStyle: .alert)
+            let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+            enterAlert.addAction(okAction)
+            present(enterAlert, animated: true, completion: nil)
+        }
     }
 
     /* ----- CUSTOM FUNCTIONS ------ */
 
-    func canEnterData() {
-        if (controlView.backgroundColor == UIColor.red) {
-            enterRun.isEnabled = false
+    func getVoltValue() {
+        voltValue = voltArray[0]
+        for volt in voltArray {
+            if ((volt - voltValue) > 1.0 || (volt - voltValue) < -1.0) {
+                voltValue = volt
+            }
         }
-        if (controlView.backgroundColor == UIColor.green) {
-            enterRun.isEnabled = true
-        }
-    }
-    
-    func getVoltValue(cValue: Double) -> Double {
-        return 0.0
     }
 
     func updateCalibration() {
         calibration.concStandardText = concStandardValueString
         calibration.concStandard = concStandardValue
-        //Get rid of the extra space at the end
         calibration.concText = concValueString.substring(to: concValueString.endIndex)
         calibration.voltText = voltValueString.substring(to: voltValueString.endIndex)
     }
-/*
+    
+    func setHiddens() {
+        enterConcValue.isHidden = true
+        enterConcValueTextField.isHidden = true
+        enterVoltLabel.isHidden = true
+        voltView.isHidden = true
+        voltLabel.isHidden = true
+        startRun.isHidden = true
+        controlView.isHidden = true
+        controlViewLabel.isHidden = true
+        enterRun.isHidden = true
+        calibrateButton.isHidden = true
+        refValueLabel.isHidden = false
+        refValueTextField.isHidden = false
+        enterRefValue.isHidden = false
+    }
+    
+    func setNotHiddens() {
+        enterConcValue.isHidden = false
+        enterConcValueTextField.isHidden = false
+        enterVoltLabel.isHidden = false
+        voltView.isHidden = false
+        voltLabel.isHidden = false
+        startRun.isHidden = false
+        controlView.isHidden = false
+        controlViewLabel.isHidden = false
+        enterRun.isHidden = false
+        calibrateButton.isHidden = false
+        refValueLabel.isHidden = true
+        refValueTextField.isHidden = true
+        enterRefValue.isHidden = true
+    }
+
     /* ----- BLUETOOTH FUNCTIONS ------ */
     // BLE properties
     var centralManager : CBCentralManager!
-    var sensorPeripheral : CBPeripheral!
+    var sensorPeripheral : CBPeripheral?
     
     // Services and characteristics of interest
     let adcUUID = "A6322521-EB79-4B9F-9152-19DAA4870418"
@@ -188,40 +227,27 @@ class RealTimeCalibrateViewController: UIViewController {
         if central.state == CBManagerState.poweredOn && launchBool == true {
             // Scan for peripherals if BLE is turned on
             central.scanForPeripherals(withServices: nil, options: nil)
-            //print("cool timer start")
             self.statusLabel.text = "Searching for BLE Devices"
             timer = Timer.scheduledTimer(timeInterval: 20, target: self, selector: #selector(stopScan), userInfo: nil, repeats: true)
             print("still running")
         }
         else {
-            // Can have different conditions for all states if needed - print generic message for now
             print("Bluetooth switched off or not initialized")
         }
     }
     
     // Check out the discovered peripherals to find sensor
-    func centralManager(central: CBCentralManager, didDiscoverPeripheral peripheral: CBPeripheral, advertisementData: [String : AnyObject], RSSI: NSNumber) {
-        
+    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         let deviceName = "BlueVolt"
-        let nameOfDeviceFound = (advertisementData as NSDictionary).object(forKey: CBAdvertisementDataLocalNameKey) as? NSString
-        /*
-         if timer == 10 {
-         self.centralManager.stopScan()
-         timer!.invalidate()
-         timer = nil
-         print("cool timer stop")
-         }
-         */
-        if (nameOfDeviceFound?.isEqual(to: deviceName))!{
-            // Update Status Label
+        let nameOfDeviceFound = peripheral.name
+
+        if (nameOfDeviceFound == deviceName){
             self.statusLabel.text = "Sensor Found"
-            
-            // Stop scanning
-            self.centralManager.stopScan()
-            // Set as the peripheral to use and establish connection
-            self.sensorPeripheral = peripheral
-            self.sensorPeripheral.delegate = self
+            let tempPeripheral: CBPeripheral = peripheral
+            self.sensorPeripheral = tempPeripheral
+            self.sensorPeripheral?.delegate = self
             self.centralManager.connect(peripheral, options: nil)
+            self.centralManager.stopScan()
         }
         else {
             self.statusLabel.text = "Sensor NOT Found"
@@ -242,14 +268,12 @@ class RealTimeCalibrateViewController: UIViewController {
         for service in peripheral.services! {
             let thisService = service as CBService
             if String(describing: service.uuid) == adcUUID {
-                // Discover characteristics of IR Temperature Service
                 peripheral.discoverCharacteristics(nil, for: thisService)
                 print("Works!")
             }
             else {
                 print("Did not work")
             }
-            // Uncomment to print list of UUIDs
             print(thisService.uuid)
         }
     }
@@ -257,26 +281,42 @@ class RealTimeCalibrateViewController: UIViewController {
     
     //Look for valid volt characteristics
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        
         self.statusLabel.text = "Looking at the service's characteristics"
-        
-        // 0x01 data byte to enable sensor
-        //var enableValue = 2
-        //let enablyBytes = NSData(bytes: &enableValue, length: sizeof(UInt16))
-        
+
         // check the uuid of each characteristic to find config and data characteristics
         for characteristic in service.characteristics! {
             thisCharacteristic = characteristic as CBCharacteristic
             // check for data characteristic
             if String(describing: thisCharacteristic!.uuid) == voltUUID {
                 // Enable Sensor Notification
-                self.sensorPeripheral.setNotifyValue(true, for: thisCharacteristic!)
+                self.sensorPeripheral?.setNotifyValue(true, for: thisCharacteristic!)
                 print("Works!!!")
             }
             print(thisCharacteristic!.uuid)
         }
     }
-*/
     
+    // Get data values when they are updated
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        
+        statusLabel.text = "Connected"
+        
+        if String(describing: characteristic.uuid) == voltUUID {
+            // Convert NSData to array of signed 16 bit values
+            let dataBytes = characteristic.value!
+            let dataLength = dataBytes.count
+            var dataArray = [UInt8](repeating: 0, count: dataLength)
+            dataBytes.copyBytes(to: &dataArray, count: dataLength * MemoryLayout<Int16>.size)
+            
+            // Element 1 of the array will be ambient temperature raw value
+            let voltsMeasurement = Double(dataArray[0])
+            voltArray.append(voltsMeasurement)
+        }
+    }
     
+    // If disconnected, show disconnected
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        self.statusLabel.text = "Disconnected"
+    }
+
 }
