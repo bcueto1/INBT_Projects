@@ -336,6 +336,7 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             
             for i in 0..<concArray.count {
                 yValues.append(ChartDataEntry(x: concArray[i], y: Double(i)))
+               // yValues.append(ChartDataEntry(x: Double(i), y: concArray[i]));
             }
             
             //create a data set with array

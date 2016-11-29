@@ -10,6 +10,17 @@ import Foundation
 import UIKit
 import CoreBluetooth
 
+extension UIViewController {
+    func hideKeyboardWhenTappedAround() {
+        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(UIViewController.dismissKeyboard))
+        view.addGestureRecognizer(tap)
+    }
+    
+    func dismissKeyboard() {
+        view.endEditing(true)
+    }
+}
+
 class RealTimeCalibrateViewController: UIViewController,
     CBCentralManagerDelegate, CBPeripheralDelegate {
     
@@ -25,6 +36,7 @@ class RealTimeCalibrateViewController: UIViewController,
     var concValueString: String = ""
     var voltValueString: String = ""
     var timer: Timer?
+    var voltTimer: Timer?
     var bluetoothBool = false
     var thisCharacteristic: CBCharacteristic?
     @IBOutlet weak var enterConcValue: UILabel!
@@ -45,11 +57,11 @@ class RealTimeCalibrateViewController: UIViewController,
     var launchBool: Bool = false {
         didSet {
             if launchBool == true {
-                startRun.setTitle("Start", for: .normal)
-                // Initialize central manager on load
+                startRun.setTitle("Running", for: .normal)
                 centralManager = CBCentralManager(delegate: self, queue: nil)
             } else {
                 if self.sensorPeripheral != nil {
+                    stopScan()
                     startRun.setTitle("Start", for: .normal)
                     self.sensorPeripheral?.setNotifyValue(false, for: thisCharacteristic!)
                     self.centralManager.cancelPeripheralConnection(sensorPeripheral!)
@@ -69,11 +81,16 @@ class RealTimeCalibrateViewController: UIViewController,
             }
         }
     }
+    
+    func falseLaunch() {
+        launchBool = false;
+    }
 
     //--- Main/Segue functions -----//
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        self.hideKeyboardWhenTappedAround()
         setHiddens()
     }
 
@@ -127,12 +144,7 @@ class RealTimeCalibrateViewController: UIViewController,
             controlViewLabel.text = "WAIT"
             concValue = Double(enterConcValueTextField.text!)!
             launchBool = true
-            timer = Timer.scheduledTimer(timeInterval: 60, target: self, selector: #selector(stopScan), userInfo: nil, repeats: true)
-            launchBool = false
-            getVoltValue()
-            voltLabel.text = String(voltValue)
-            controlView.backgroundColor = UIColor.green
-            controlViewLabel.text = "READY"
+            voltTimer = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(falseLaunch), userInfo: nil, repeats: true)
         } else {
             let alert = UIAlertController(title: "Alert", message: "Please enter valid concentration", preferredStyle: .alert)
             let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
@@ -145,10 +157,14 @@ class RealTimeCalibrateViewController: UIViewController,
         if (controlView.backgroundColor == UIColor.green) {
             dataCounter += 1
             concValueString += String(concValue) + " "
-            voltValueString += String(voltValue) + " "
+            voltValueString += voltLabel.text! + " "
+            voltLabel.text = "";
+            enterConcValue.text = "";
+            concValue = 0;
+            voltValue = 0;
             voltArray.removeAll()
             controlView.backgroundColor = UIColor.red
-            controlViewLabel.text = "WAIT"
+            controlViewLabel.text = ""
         } else {
             let enterAlert = UIAlertController(title: "Alert", message: "Data not allowed to be entered yet.", preferredStyle: .alert)
             let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
@@ -228,7 +244,7 @@ class RealTimeCalibrateViewController: UIViewController,
             // Scan for peripherals if BLE is turned on
             central.scanForPeripherals(withServices: nil, options: nil)
             self.statusLabel.text = "Searching for BLE Devices"
-            timer = Timer.scheduledTimer(timeInterval: 20, target: self, selector: #selector(stopScan), userInfo: nil, repeats: true)
+            //timer = Timer.scheduledTimer(timeInterval: 20.0, target: self, selector: #selector(stopScan), userInfo: nil, repeats: true)
             print("still running")
         }
         else {
@@ -302,6 +318,7 @@ class RealTimeCalibrateViewController: UIViewController,
         statusLabel.text = "Connected"
         
         if String(describing: characteristic.uuid) == voltUUID {
+
             // Convert NSData to array of signed 16 bit values
             let dataBytes = characteristic.value!
             let dataLength = dataBytes.count
@@ -311,6 +328,7 @@ class RealTimeCalibrateViewController: UIViewController,
             // Element 1 of the array will be ambient temperature raw value
             let voltsMeasurement = Double(dataArray[0])
             voltArray.append(voltsMeasurement)
+
         }
     }
     
