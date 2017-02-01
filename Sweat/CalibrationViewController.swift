@@ -56,7 +56,7 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         let yintRounded = round(1000 * calibration!.yint) / 1000
         let rSquaredRounded = round(1000 * calibration!.rSquared) / 1000
         
-        // Assigns paramets to equation and rsquared text labels.
+        // Assigns parameters to equation and rsquared text labels.
         equationLabel.text = "v = \(slopeRounded)c\(yintRounded)"
         rsquaredLabel.text = "R"+"\u{00B2}"+" = "+"\(rSquaredRounded)"
         
@@ -75,7 +75,7 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         
         //Assigns volt values of calibration to variable yValues.
         for i in 0..<voltValues.count {
-            yValues.append(ChartDataEntry(x: voltValues[i], y: Double(i)))
+            yValues.append(ChartDataEntry(x: concValuesScaled[i], y: voltValues[i]))
         }
         
         //create a data set with array of voltage values.
@@ -99,11 +99,6 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         
         // Passes the concentration (x) and voltage (y) calibration data to the property data of calibrationChartView.
         self.calibrationChartView.data = data
-    }
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
     
     // ------ SEGUE FUNCTIONS -----

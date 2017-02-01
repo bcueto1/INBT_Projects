@@ -9,20 +9,16 @@
 import Foundation
 import UIKit
 import CoreBluetooth
-
-extension UIViewController {
-    func hideKeyboardWhenTappedAround() {
-        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(UIViewController.dismissKeyboard))
-        view.addGestureRecognizer(tap)
-    }
-    
-    func dismissKeyboard() {
-        view.endEditing(true)
-    }
-}
+import Charts
 
 class RealTimeCalibrateViewController: UIViewController,
     CBCentralManagerDelegate, CBPeripheralDelegate {
+    
+    
+    /* -- Charts Related Outlets -- */
+    @IBOutlet weak var realTimeChart: LineChartView!
+    @IBOutlet weak var voltChartLabel: UILabel!
+    
     
     /* -- Declare Variables and Outlets -- */
     let calibration = Calibration()
@@ -35,6 +31,9 @@ class RealTimeCalibrateViewController: UIViewController,
     var concStandardValueString: String = ""
     var concValueString: String = ""
     var voltValueString: String = ""
+    var timeArray = [Double]()
+    var minutesArray = [String]()
+    var timeForLoop: Double = 60.0
     var timer: Timer?
     var voltTimer: Timer?
     var bluetoothBool = false
@@ -92,6 +91,8 @@ class RealTimeCalibrateViewController: UIViewController,
         super.viewDidLoad()
         self.hideKeyboardWhenTappedAround()
         setHiddens()
+        voltChartLabel.transform = CGAffineTransform (rotationAngle: CGFloat(-M_PI_2))
+        configureChart()
     }
 
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
@@ -144,7 +145,7 @@ class RealTimeCalibrateViewController: UIViewController,
             controlViewLabel.text = "WAIT"
             concValue = Double(enterConcValueTextField.text!)!
             launchBool = true
-            voltTimer = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(falseLaunch), userInfo: nil, repeats: true)
+            startTime()
         } else {
             let alert = UIAlertController(title: "Alert", message: "Please enter valid concentration", preferredStyle: .alert)
             let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
@@ -175,15 +176,16 @@ class RealTimeCalibrateViewController: UIViewController,
 
     /* ----- CUSTOM FUNCTIONS ------ */
 
+    // Gets the volt value
     func getVoltValue() {
-        voltValue = voltArray[0]
+        var average: Double = 0
         for volt in voltArray {
-            if ((volt - voltValue) > 1.0 || (volt - voltValue) < -1.0) {
-                voltValue = volt
-            }
+            average += volt
         }
+        voltValue = average / Double(voltArray.count)
     }
 
+    // Updates the calibration information
     func updateCalibration() {
         calibration.concStandardText = concStandardValueString
         calibration.concStandard = concStandardValue
@@ -191,6 +193,7 @@ class RealTimeCalibrateViewController: UIViewController,
         calibration.voltText = voltValueString.substring(to: voltValueString.endIndex)
     }
     
+    // Set hiddens
     func setHiddens() {
         enterConcValue.isHidden = true
         enterConcValueTextField.isHidden = true
@@ -205,8 +208,11 @@ class RealTimeCalibrateViewController: UIViewController,
         refValueLabel.isHidden = false
         refValueTextField.isHidden = false
         enterRefValue.isHidden = false
+        realTimeChart.isHidden = true
+        voltChartLabel.isHidden = true
     }
     
+    // Set hiddens
     func setNotHiddens() {
         enterConcValue.isHidden = false
         enterConcValueTextField.isHidden = false
@@ -221,6 +227,18 @@ class RealTimeCalibrateViewController: UIViewController,
         refValueLabel.isHidden = true
         refValueTextField.isHidden = true
         enterRefValue.isHidden = true
+        realTimeChart.isHidden = false
+        voltChartLabel.isHidden = false
+    }
+    
+    // The timer for the calibration
+    func startTime() {
+        voltTimer = Timer.scheduledTimer(timeInterval: timeForLoop, target: self, selector: #selector(falseLaunch), userInfo: nil, repeats: true)
+    }
+    
+    // If requirements are not settled, add another 60 seconds
+    func restartTime() {
+        timeForLoop += 60
     }
 
     /* ----- BLUETOOTH FUNCTIONS ------ */
@@ -325,9 +343,15 @@ class RealTimeCalibrateViewController: UIViewController,
             var dataArray = [UInt8](repeating: 0, count: dataLength)
             dataBytes.copyBytes(to: &dataArray, count: dataLength * MemoryLayout<Int16>.size)
             
-            // Element 1 of the array will be ambient temperature raw value
             let voltsMeasurement = Double(dataArray[0])
+            if voltArray.count > 1 {
+                if ((voltArray[voltArray.count - 1]) - voltsMeasurement > 1) || (voltsMeasurement - voltArray[voltArray.count - 1] > 1) {
+                        voltArray.removeAll()
+                        restartTime()
+                }
+            }
             voltArray.append(voltsMeasurement)
+            displayPlot()
 
         }
     }
@@ -335,6 +359,54 @@ class RealTimeCalibrateViewController: UIViewController,
     // If disconnected, show disconnected
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         self.statusLabel.text = "Disconnected"
+    }
+    
+    // -------- CHARTS ----------
+    
+    // Function handling the display of the plot for the chart
+    func displayPlot() {
+        var yValues : [ChartDataEntry] = [ChartDataEntry]()
+        
+        for i in 0..<voltArray.count {
+            yValues.append(ChartDataEntry(x: Double(i), y: voltArray[i]))
+        }
+        
+        let ySet: LineChartDataSet = LineChartDataSet(values: yValues, label: "")
+        
+        ySet.axisDependency = .left
+        ySet.setColor(UIColor.blue)
+        ySet.setCircleColor(UIColor.blue)
+        ySet.lineWidth = 2.0
+        ySet.circleRadius = 3.0
+        ySet.drawCircleHoleEnabled = false
+        ySet.drawFilledEnabled = false
+        
+        var dataSets : [LineChartDataSet] = [LineChartDataSet]()
+        dataSets.append(ySet)
+        
+        let data: LineChartData = LineChartData(dataSets: dataSets)
+        
+        self.realTimeChart.data = data
+    }
+    
+    
+    // Function contiaining chart configuration based on the third-party Charts framework.
+    func configureChart() {
+        //Chart config
+        realTimeChart.leftAxis.axisMinimum = 0
+        realTimeChart.xAxis.axisMinimum = 0
+        realTimeChart.leftAxis.valueFormatter = DefaultAxisValueFormatter(decimals: 1)
+        realTimeChart.chartDescription?.text = ""
+        realTimeChart.noDataText = "No Data"
+        realTimeChart.dragEnabled = true
+        realTimeChart.rightAxis.enabled = false
+        realTimeChart.doubleTapToZoomEnabled = true
+        realTimeChart.pinchZoomEnabled = true
+        realTimeChart.legend.enabled = false
+        realTimeChart.drawBordersEnabled = true
+        //Configure xAxis
+        let chartXAxis = realTimeChart.xAxis as XAxis
+        chartXAxis.labelPosition = .bottom
     }
 
 }

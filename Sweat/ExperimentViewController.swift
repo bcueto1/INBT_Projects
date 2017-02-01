@@ -31,6 +31,9 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
     @IBOutlet weak var mVLabel: UILabel!
     @IBOutlet weak var mMLabel: UILabel!
     
+    //Lists the proper concentration and time when appropriate
+    @IBOutlet weak var goodConcentration: UILabel!
+    @IBOutlet weak var goodTime: UILabel!
     
     // Integrated email feature
     // Initialization of instances of classes and properties
@@ -127,6 +130,8 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
+        goodConcentration.isHidden = true;
+        goodTime.isHidden = true;
         concentrationLabel.transform = CGAffineTransform(rotationAngle: CGFloat(-M_PI_2)) //rotate the label?
         experimentNumber = 1
         configureChart()
@@ -144,6 +149,7 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         let conc = concStandard * pow(10.0,exponent)
         return conc
     }
+    
     
     // ----------- Segue Functions ----------
     
@@ -169,10 +175,7 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             return true
         }
     }
-    
 
-    
-    
     // ------- BLUETOOTH --------
     
     // BLE properties
@@ -335,8 +338,7 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             var yValues : [ChartDataEntry] = [ChartDataEntry]()
             
             for i in 0..<concArray.count {
-                yValues.append(ChartDataEntry(x: concArray[i], y: Double(i)))
-               // yValues.append(ChartDataEntry(x: Double(i), y: concArray[i]));
+               yValues.append(ChartDataEntry(x: Double(i), y: concArray[i]));
             }
             
             //create a data set with array
