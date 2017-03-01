@@ -221,7 +221,7 @@
 				TargetAttributes = {
 					D3F8A5DB1DBE6BAF003389EA = {
 						CreatedOnToolsVersion = 8.0;
-						DevelopmentTeam = 9PY85QXKQ2;
+						DevelopmentTeam = R279MP7D2B;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -428,7 +428,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				DEVELOPMENT_TEAM = 9PY85QXKQ2;
+				DEVELOPMENT_TEAM = R279MP7D2B;
 				INFOPLIST_FILE = Sweat/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.Brian-INBT.Sweat";
@@ -442,7 +442,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				DEVELOPMENT_TEAM = 9PY85QXKQ2;
+				DEVELOPMENT_TEAM = R279MP7D2B;
 				INFOPLIST_FILE = Sweat/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.Brian-INBT.Sweat";

@@ -27,6 +27,7 @@ class RealTimeCalibrateViewController: UIViewController,
     var concStandardValue: Double = 0
     var concValue: Double = 0
     var voltValue: Double = 0
+    var initialMinutes: Double = 0
     var voltArray = [Double]()
     var concStandardValueString: String = ""
     var concValueString: String = ""
@@ -141,6 +142,8 @@ class RealTimeCalibrateViewController: UIViewController,
     @IBAction func startisPressed(_ sender: Any) {
         if Double(enterConcValueTextField.text!) != nil {
             voltArray.removeAll()
+            timeArray.removeAll()
+            initialMinutes = 0
             controlView.backgroundColor = UIColor.red
             controlViewLabel.text = "WAIT"
             concValue = Double(enterConcValueTextField.text!)!
@@ -160,7 +163,7 @@ class RealTimeCalibrateViewController: UIViewController,
             concValueString += String(concValue) + " "
             voltValueString += voltLabel.text! + " "
             voltLabel.text = "";
-            enterConcValue.text = "";
+            enterConcValueTextField.text = "";
             concValue = 0;
             voltValue = 0;
             voltArray.removeAll()
@@ -336,6 +339,24 @@ class RealTimeCalibrateViewController: UIViewController,
         statusLabel.text = "Connected"
         
         if String(describing: characteristic.uuid) == voltUUID {
+            
+            //Get time
+            let date = NSDate()
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "HH:mm:ss:SSS"
+            let timeStamp = dateFormatter.string(from: date as Date)
+            let timeStampStringArray = timeStamp.components(separatedBy: ":")
+            let timeStampDoubleOptionalArray = timeStampStringArray.map({NumberFormatter().number(from: $0)?.doubleValue})
+            let timeStampDoubleArray = timeStampDoubleOptionalArray.flatMap{$0}
+            // Convert to minutes
+            let seconds = timeStampDoubleArray[2] + timeStampDoubleArray[3]/1000
+            let minutes = timeStampDoubleArray[0]*60 + timeStampDoubleArray[1] + seconds/60
+            timeArray.append(minutes-initialMinutes)
+            if timeArray.count == 1 {
+                initialMinutes = timeArray[0]
+                timeArray[0] = minutes-initialMinutes
+            }
+            minutesArray.append(String(round(100*(minutes-initialMinutes)/100)))
 
             // Convert NSData to array of signed 16 bit values
             let dataBytes = characteristic.value!
@@ -365,24 +386,24 @@ class RealTimeCalibrateViewController: UIViewController,
     
     // Function handling the display of the plot for the chart
     func displayPlot() {
-        var yValues : [ChartDataEntry] = [ChartDataEntry]()
+        var chartValues : [ChartDataEntry] = [ChartDataEntry]()
         
         for i in 0..<voltArray.count {
-            yValues.append(ChartDataEntry(x: Double(i), y: voltArray[i]))
+            chartValues.append(ChartDataEntry(x: timeArray[i], y: voltArray[i]))
         }
         
-        let ySet: LineChartDataSet = LineChartDataSet(values: yValues, label: "")
+        let chartSet: LineChartDataSet = LineChartDataSet(values: chartValues, label: "")
         
-        ySet.axisDependency = .left
-        ySet.setColor(UIColor.blue)
-        ySet.setCircleColor(UIColor.blue)
-        ySet.lineWidth = 2.0
-        ySet.circleRadius = 3.0
-        ySet.drawCircleHoleEnabled = false
-        ySet.drawFilledEnabled = false
+        chartSet.axisDependency = .left
+        chartSet.setColor(UIColor.blue)
+        chartSet.setCircleColor(UIColor.blue)
+        chartSet.lineWidth = 2.0
+        chartSet.circleRadius = 3.0
+        chartSet.drawCircleHoleEnabled = false
+        chartSet.drawFilledEnabled = false
         
         var dataSets : [LineChartDataSet] = [LineChartDataSet]()
-        dataSets.append(ySet)
+        dataSets.append(chartSet)
         
         let data: LineChartData = LineChartData(dataSets: dataSets)
         

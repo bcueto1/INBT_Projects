@@ -335,27 +335,27 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             // SET CHART DATA
             
             //creates an array of data entries
-            var yValues : [ChartDataEntry] = [ChartDataEntry]()
+            var chartValues : [ChartDataEntry] = [ChartDataEntry]()
             
             for i in 0..<concArray.count {
-               yValues.append(ChartDataEntry(x: Double(i), y: concArray[i]));
+                chartValues.append(ChartDataEntry(x: timeArray[i], y: concArray[i]))
             }
             
             //create a data set with array
-            let ySet: LineChartDataSet = LineChartDataSet(values: yValues, label: "")
+            let chartSet: LineChartDataSet = LineChartDataSet(values: chartValues, label: "")
             
             // line chart config
-            ySet.axisDependency = .left
-            ySet.setColor(UIColor.blue)
-            ySet.setCircleColor(UIColor.blue)
-            ySet.lineWidth = 2.0
-            ySet.circleRadius = 3.0
-            ySet.drawCircleHoleEnabled = false
-            ySet.drawFilledEnabled = false
+            chartSet.axisDependency = .left
+            chartSet.setColor(UIColor.blue)
+            chartSet.setCircleColor(UIColor.blue)
+            chartSet.lineWidth = 2.0
+            chartSet.circleRadius = 3.0
+            chartSet.drawCircleHoleEnabled = false
+            chartSet.drawFilledEnabled = false
             
             //create an array to store LineChartDataSets
             var dataSets : [LineChartDataSet] = [LineChartDataSet]()
-            dataSets.append(ySet)
+            dataSets.append(chartSet)
             
             let data: LineChartData = LineChartData(dataSets: dataSets)
 
