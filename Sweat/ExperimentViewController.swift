@@ -12,52 +12,64 @@ import CoreBluetooth
 import MessageUI
 import Charts
 
+/**
+ * Experiment view controller where person can test concentration values vs. time.
+ *
+ */
 class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDelegate, MFMailComposeViewControllerDelegate, ChartViewDelegate {
     
-    // You may need to finagle with the general settings to get my code to work on your computer. Change deployment target to 9.3 if your phone is up-to-date. Try with and without changing deployment target if for some odd reason without changing is the one that works *********************
-    // If you get a PID Message, just press stop and play again *********************
+    /** Outlets */
     @IBOutlet weak var concentrationLabel: UILabel!
-    // Added a view objects to calibration and experiment views  that you can use (haven't linked up to their view controller code), ignore the auto-layout issues for now. *********************
-    
-    
     @IBOutlet weak var experimentChartView: LineChartView!
     @IBOutlet weak var connectButtonOutlet: UIButton!
     @IBAction func connectButtonAction(sender: UIButton) {
         launchBool = !launchBool
-        experiment.launchBool = launchBool //true to false, false to true...
-        //check = true
+        experiment.launchBool = launchBool
+        
     }
     @IBOutlet weak var statusLabel: UILabel!
     @IBOutlet weak var mVLabel: UILabel!
     @IBOutlet weak var mMLabel: UILabel!
+    @IBOutlet weak var rangeText: UITextField!
+    @IBOutlet weak var stableTimeField: UITextField!
+    @IBOutlet weak var measurementTimeField: UITextField!
     
     //Lists the proper concentration and time when appropriate
-    @IBOutlet weak var goodConcentration: UILabel!
-    @IBOutlet weak var goodTime: UILabel!
+    @IBOutlet weak var stableConcentration: UILabel!
+    @IBOutlet weak var measurementConcentration: UILabel!
     
-    // Integrated email feature
-    // Initialization of instances of classes and properties
-    // Classes
+    /** Variables */
     var calibration: Calibration?
     var experiment = Experiment()
-    var patient = Patient()
-    // Properties
+    var patientID: String!
     var experimentNumber: Int?
     var bluetoothBool = false
+    var timeCounter: Double = 0.0
     var timer: Timer?
     var thisCharacteristic: CBCharacteristic?
     var initialMinutes: Double = 0
     var maxSize: Int = 0
+    var range: Double = 1.0
+    var testStable: Bool = true
+    var measurementTimeLimitReached: Bool = false
+    var stableTimeLimit: Double = 60.0
+    var measurementTimeLimit: Double = 60.0
     var timeDict = [String:[Double]]()
     var voltDict = [String:[Double]]()
     var concDict = [String:[Double]]()
     var timeDictString = [String:[String]]()
     var voltDictString = [String:[String]]()
     var concDictString = [String:[String]]()
-    var timeArray = [Double]() // x values that need to to be plotted, updated within the second function peripheral *********************
+    var timeArray = [Double]()
     var minutesArray = [String]()
-    var voltArray = [Double]() // doesn't need to be plotted *********************
-    var concArray = [Double]() // y values that need to be plotted, updated similarly *********************
+    var voltArray = [Double]()
+    var concArray = [Double]()
+    var stableConcValue: Double = 0.0
+    var stableConcArray = [Double]()
+    var measurementConcValue: Double = 0.0
+    var measurementConcArray = [Double]()
+    var averageStableArray = [Double]()
+    var averageMeasurementArray = [Double]()
     var timeArrayString = [String]()
     var voltArrayString = [String]()
     var concArrayString = [String]()
@@ -69,90 +81,171 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
     var voltsMeasurementTest: Double = 3
     var concMeasurement: Double = 3
 
-    //var check = false
+    /**
+     * Handle setting bluetooth functioanlity to run or not.
+     *
+     */
     var launchBool: Bool = false {
         didSet {
             if launchBool == true {
+                if (self.rangeText.text != "") {
+                    self.range = Double(self.rangeText.text!)!
+                }
+                if (self.stableTimeField.text != "") {
+                    self.stableTimeLimit = Double(self.stableTimeField.text!)!
+                }
+                if (self.measurementTimeField.text != "") {
+                    self.measurementTimeLimit = Double(self.measurementTimeField.text!)!
+                }
                 connectButtonOutlet.setTitle("Stop Experiment \(experimentNumber!)", for: .normal)
-                // Initialize central manager on load
                 centralManager = CBCentralManager(delegate: self, queue: nil)
                 experimentNumber! += 1
-                //let experiment = Experiment()
-                //timer = NSTimer.scheduledTimerWithTimeInterval(1, target: self, selector: "fireStopWatch", userInfo: nil, repeats: true)
+                self.startTime()
+                
             } else {
                 if self.sensorPeripheral != nil {
+                    self.stopScan()
                     timeDict["Experiment \(experimentNumber!-1)"] = timeArray
                     voltDict["Experiment \(experimentNumber!-1)"] = voltArray
                     concDict["Experiment \(experimentNumber!-1)"] = concArray
                     if timeArray.count > maxSize {
                         maxSize = timeArray.count
                     }
-                    initialMinutes = 0
-                    minutesArray.removeAll()
-                    timeArray.removeAll()
-                    voltArray.removeAll()
-                    concArray.removeAll()
+                    self.averageStableArray.append(self.stableConcValue)
+                    self.averageMeasurementArray.append(self.measurementConcValue)
+                    self.initialMinutes = 0
+                    self.minutesArray.removeAll()
+                    self.timeArray.removeAll()
+                    self.voltArray.removeAll()
+                    self.concArray.removeAll()
+                    self.stableConcArray.removeAll()
+                    self.stableConcValue = 0.0
+                    self.measurementConcArray.removeAll()
+                    self.measurementConcValue = 0.0
+                    self.timeCounter = 0.0
+                    self.range = 1.0
+                    self.stableTimeLimit = 60.0
+                    self.measurementTimeLimit = 60.0
+                    self.testStable = true
+                    self.measurementTimeLimitReached = false
+                    self.stableConcentration.text = ""
+                    self.measurementConcentration.text = ""
                     experiment.emailBool = false
                     print(voltDict)
                     connectButtonOutlet.setTitle("Start Experiment \(experimentNumber!)", for: .normal)
                     self.sensorPeripheral?.setNotifyValue(false, for: thisCharacteristic!)
                     self.centralManager.cancelPeripheralConnection(sensorPeripheral!)
                     
-                } else if timer != nil {
-                    print("coooooool")
-                    initialMinutes = 0
-                    minutesArray.removeAll()
-                    timeArray.removeAll()
-                    voltArray.removeAll()
-                    concArray.removeAll()
-                    experimentNumber! -= 1
-                    stopScan()
-                    connectButtonOutlet.setTitle("Start Experiment \(experimentNumber!)", for: .normal)
-                    self.statusLabel.text = "Disconnected"
                 } else {
+                    self.stopScan()
                     initialMinutes = 0
                     minutesArray.removeAll()
                     timeArray.removeAll()
-                    voltArray.removeAll()
-                    concArray.removeAll()
+                    self.voltArray.removeAll()
+                    self.concArray.removeAll()
+                    self.stableConcArray.removeAll()
+                    self.stableConcValue = 0.0
+                    self.measurementConcArray.removeAll()
+                    self.measurementConcValue = 0.0
+                    self.timeCounter = 0.0
+                    self.range = 1.0
+                    self.stableTimeLimit = 60.0
+                    self.measurementTimeLimit = 60.0
+                    self.testStable = true
+                    self.measurementTimeLimitReached = false
+                    self.stableConcentration.text = ""
+                    self.measurementConcentration.text = ""
                     experimentNumber! -= 1
                     stopScan()
                     connectButtonOutlet.setTitle("Start Experiment \(experimentNumber!)", for: .normal)
                     self.statusLabel.text = "Peripheral not advertising properly, try again"
                 }
-                //timer?.invalidate()
-                //timer = nil
-                //myInt = 0
             }
         }
     }
     
+    /**
+     * Do things when the view loads.
+     *
+     */
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
-        goodConcentration.isHidden = true;
-        goodTime.isHidden = true;
-        concentrationLabel.transform = CGAffineTransform(rotationAngle: CGFloat(-M_PI_2)) //rotate the label?
+        self.hideKeyboardWhenTappedAround()
+        concentrationLabel.transform = CGAffineTransform(rotationAngle: CGFloat(-M_PI_2))
         experimentNumber = 1
         configureChart()
     }
     
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-    
     // -------- Custom Functions ----------
     
+    /**
+     * Converts volt values to concentration values.
+     *
+     */
     func convertVoltToConc(volt: Double, slope: Double, yint: Double, concStandard: Double) -> Double {
         let exponent = (volt - yint) / slope
         let conc = concStandard * pow(10.0,exponent)
         return conc
     }
     
+    /**
+     * Start the timer.  Checks every 1 second and looks at checkFullTime, which increments the time counter and checks
+     * if it is 60 seconds.
+     *
+     */
+    func startTime() {
+        self.timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(self.checkFullTime), userInfo: nil, repeats: true)
+    }
+    
+    /**
+     * Checks the to see if the time counter is equal to 60.  Increments beforehand.
+     *
+     */
+    func checkFullTime() {
+        self.timeCounter = self.timeCounter + 1.0
+        if ((self.timeCounter == self.stableTimeLimit) && self.testStable) {
+            self.updateStable()
+            self.timeCounter = 0.0
+            self.testStable = false
+        } else if ((self.timeCounter >= self.measurementTimeLimit) && !self.testStable) {
+            self.updateMeasurement()
+        }
+    }
+    
+    /**
+     * Update the average stable value.
+     *
+     */
+    func updateStable() {
+        var average: Double = 0.0
+        for conc in self.stableConcArray {
+            average += conc
+        }
+        self.stableConcValue = average / Double(self.stableConcArray.count)
+        self.stableConcentration.text = (NSString(format: "%.2f", self.stableConcValue) as String) + " mM"
+        
+    }
+   
+    /**
+     * Update the average measurement value.
+     *
+     */
+    func updateMeasurement() {
+        var average: Double = 0.0
+        for conc in self.measurementConcArray {
+            average += conc
+        }
+        self.measurementConcValue = average / Double(self.measurementConcArray.count)
+        self.measurementConcentration.text = (NSString(format: "%.2f", self.measurementConcValue) as String) + " mM"
+    }
+    
     
     // ----------- Segue Functions ----------
     
+    /**
+     * Check to see if it is okay to go to another view.
+     *
+     */
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         // ALERT CODE
         let calibrationAlert1 = UIAlertController(title: "Alert", message: "Please stop current experiment to start new session or view last session", preferredStyle: .alert)
@@ -178,11 +271,11 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
 
     // ------- BLUETOOTH --------
     
-    // BLE properties
+    /** BLE properties */
     var centralManager : CBCentralManager!
     var sensorPeripheral : CBPeripheral?
 
-    // Services and characteristics of interest
+    /** Services and characteristics of interest */
     let adcUUID = "A6322521-EB79-4B9F-9152-19DAA4870418"
     let voltUUID = "F90EA017-F673-45B8-B00B-16A088A2ED62"
 
@@ -192,14 +285,16 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         timer = nil
     }
 
-    // Check status of BLE hardware
+    /**
+     * Check status of BLE hardware.
+     *
+     */
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == CBManagerState.poweredOn && launchBool == true {
             // Scan for peripherals if BLE is turned on
             central.scanForPeripherals(withServices: nil, options: nil)
             //print("cool timer start")
             self.statusLabel.text = "Searching for BLE Devices"
-            timer = Timer.scheduledTimer(timeInterval: 20, target: self, selector: #selector(stopScan), userInfo: nil, repeats: true)
             print("still running")
         }
         else {
@@ -208,7 +303,10 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         }
     }
 
-    // Check out the discovered peripherals to find sensor
+    /**
+     * Check out the discovered peripherals to find sensor.
+     *
+     */
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         let deviceName = "BlueVolt"
         let nameOfDeviceFound = peripheral.name
@@ -232,14 +330,20 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         
     }
 
-    // Discover services of the peripheral
+    /**
+     * Discover services of the peripheral.
+     *
+     */
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         self.statusLabel.text = "Discovering peripheral services"
         peripheral.discoverServices(nil)
     }
     
     
-    // Check if the service discovered is a valid adc service
+    /**
+     * Check if the service discovered is a valid adc service.
+     *
+     */
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         self.statusLabel.text = "Looking at peripheral services"
         for service in peripheral.services! {
@@ -258,14 +362,13 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
     }
     
     
-    //Look for valid volt characteristics
+    /**
+     * Look for valid volt values.
+     *
+     */
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         
         self.statusLabel.text = "Looking at the service's characteristics"
-        
-        // 0x01 data byte to enable sensor
-        //var enableValue = 2
-        //let enablyBytes = NSData(bytes: &enableValue, length: sizeof(UInt16))
         
         // check the uuid of each characteristic to find config and data characteristics
         for characteristic in service.characteristics! {
@@ -280,13 +383,15 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         }
     }
     
-    // This function below gets called every time the app gets notified with a new value (function above) *********************
-    // Get data values when they are updated
+    /**
+     * Update values whenever a new value is detected.
+     *
+     */
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         
         statusLabel.text = "Connected"
         
-        if String(describing: characteristic.uuid) == voltUUID { // Real time plotting can probably occur within this if closure, this is where i append the received data to the arrays initialized at the beginning -- you can probably append these values to the plot views *********************
+        if String(describing: characteristic.uuid) == voltUUID {
             
             let date = NSDate()
             let dateFormatter = DateFormatter()
@@ -298,25 +403,21 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             // Convert to minutes
             let seconds = timeStampDoubleArray[2] + timeStampDoubleArray[3]/1000
             let minutes = timeStampDoubleArray[0]*60 + timeStampDoubleArray[1] + seconds/60
-            print(timeStamp)
-            print(minutes)
             
             // Convert NSData to array of signed 16 bit values
             let dataBytes = characteristic.value!
-            let dataLength = dataBytes.count
+            let dataLength = dataBytes.count / MemoryLayout<UInt8>.size
             var dataArray = [UInt8](repeating: 0, count: dataLength)
-            dataBytes.copyBytes(to: &dataArray, count: dataLength * MemoryLayout<Int16>.size)
+            dataBytes.copyBytes(to: &dataArray, count: dataLength * MemoryLayout<Int8>.size)
             
-            // Element 1 of the array will be ambient temperature raw value
-            voltsMeasurement = Double(dataArray[0])
-            voltsMeasurementTest = voltsMeasurement / (5.78) // GAIN, YOU CAN PUT GAIN NUMBER HERE TO CUSTOMIZE
+            let u16 = UnsafePointer(dataArray).withMemoryRebound(to: UInt16.self, capacity: 1) {
+                $0.pointee
+            }
+            voltsMeasurement = Double(u16)
+            voltsMeasurementTest = voltsMeasurement / (5.78) // GAIN
             concMeasurement = convertVoltToConc(volt: voltsMeasurementTest, slope: calibration!.slope, yint: calibration!.yint, concStandard: calibration!.concStandard)
-            // Display on the temp label
-            //NSNotificationCenter.defaultCenter().postNotificationName("updateTimer", object: nil)
-            //mVLabel.text = "\(voltsMeasurementTest) mV"
-            //mMLabel.text = "\(round(100*concMeasurement)/100) mM"
-            self.mVLabel.text = "\(round(10*voltsMeasurementTest)/10) mV"
-            self.mMLabel.text = "\(round(10*concMeasurement)/10) mM"
+            self.mVLabel.text = String(round(100*voltsMeasurementTest)/100) + " mV"
+            self.mMLabel.text = String(round(100*concMeasurement)/100) + " mM"
             timeArray.append(minutes-initialMinutes)
             if timeArray.count == 1 {
                 initialMinutes = timeArray[0]
@@ -325,56 +426,92 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
             minutesArray.append(String(round(100*(minutes-initialMinutes)/100)))
             voltArray.append(voltsMeasurementTest)
             concArray.append(round(100*concMeasurement)/100)
-            print(dataBytes)
-            print(timeArray)
-            print(voltsMeasurementTest)
-            print(voltArray)
-            print(concMeasurement)
-            print(concArray)
             
-            // SET CHART DATA
-            
-            //creates an array of data entries
-            var chartValues : [ChartDataEntry] = [ChartDataEntry]()
-            
-            for i in 0..<concArray.count {
-                chartValues.append(ChartDataEntry(x: timeArray[i], y: concArray[i]))
+            if (self.testStable) {
+                self.checkConcValue(concTest: round(100*concMeasurement)/100)
+            } else {
+                self.addMeasurementConcValue(concTest: round(100*concMeasurement)/100)
             }
             
-            //create a data set with array
-            let chartSet: LineChartDataSet = LineChartDataSet(values: chartValues, label: "")
-            
-            // line chart config
-            chartSet.axisDependency = .left
-            chartSet.setColor(UIColor.blue)
-            chartSet.setCircleColor(UIColor.blue)
-            chartSet.lineWidth = 2.0
-            chartSet.circleRadius = 3.0
-            chartSet.drawCircleHoleEnabled = false
-            chartSet.drawFilledEnabled = false
-            
-            //create an array to store LineChartDataSets
-            var dataSets : [LineChartDataSet] = [LineChartDataSet]()
-            dataSets.append(chartSet)
-            
-            let data: LineChartData = LineChartData(dataSets: dataSets)
-
-            // finally set data
-            self.experimentChartView.data = data
-            
+            self.displayPlot()
         }
     }
     
-    // If disconnected, show disconnected
+    /**
+     * Checks the volt value.  If new value is in the given range, add it to stable volt array.
+     * Still add to general volt array to display on graph,.
+     *
+     */
+    func checkConcValue(concTest: Double) {
+        if self.stableConcArray.count >= 1 {
+            let previousValue = self.stableConcArray[self.stableConcArray.count - 1]
+            let difference = abs(previousValue - concTest)
+            print(difference)
+            if (difference < self.range) {
+                self.stableConcArray.append(concTest)
+            } else {
+                self.stableConcArray.removeAll()
+                self.timeCounter = 0.0
+            }
+        } else if self.stableConcArray.count == 0 {
+            self.stableConcArray.append(concTest)
+        }
+        print(self.timeCounter)
+
+    }
+    
+    /**
+     * Add value to measurement concentration array.
+     *
+     */
+    func addMeasurementConcValue(concTest: Double) {
+        self.measurementConcArray.append(concTest)
+        print(self.timeCounter)
+    }
+    
+    /**
+     * Displays plot.
+     *
+     */
+    func displayPlot() {
+        var chartValues : [ChartDataEntry] = [ChartDataEntry]()
+        
+        for i in 0..<concArray.count {
+            chartValues.append(ChartDataEntry(x: timeArray[i], y: concArray[i]))
+        }
+        
+        let chartSet: LineChartDataSet = LineChartDataSet(values: chartValues, label: "")
+        
+        chartSet.axisDependency = .left
+        chartSet.setColor(UIColor.blue)
+        chartSet.setCircleColor(UIColor.blue)
+        chartSet.lineWidth = 2.0
+        chartSet.circleRadius = 3.0
+        chartSet.drawCircleHoleEnabled = false
+        chartSet.drawFilledEnabled = false
+        
+        var dataSets : [LineChartDataSet] = [LineChartDataSet]()
+        dataSets.append(chartSet)
+        let data: LineChartData = LineChartData(dataSets: dataSets)
+        self.experimentChartView.data = data
+    }
+    
+    /**
+     * If disconnected, say disconnected.
+     *
+     */
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         self.statusLabel.text = "Disconnected"
         self.mVLabel.text = "0.00 mV"
         self.mMLabel.text = "0.00 mM"
-        //central.scanForPeripheralsWithServices(nil, options: nil)
     }
     
     // ------- EMAIL ----------
     
+    /**
+     * Launch the email controller if this button is clicked.
+     *
+     */
     @IBAction func emailButtonAction(sender: AnyObject) {
         let mailComposeViewController = configuredMailComposeViewController()
         if MFMailComposeViewController.canSendMail() {
@@ -384,6 +521,10 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         }
     }
     
+    /**
+     * Give the mail view controller certain values.
+     *
+     */
     func configuredMailComposeViewController() -> MFMailComposeViewController {
         let currentDateTime = NSDate()
         let formatter = DateFormatter()
@@ -393,8 +534,11 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         
         let mailComposerVC = MFMailComposeViewController()
         mailComposerVC.mailComposeDelegate = self
-        mailComposerVC.setSubject("Session Results - "+stringDate)
-        mailComposerVC.setMessageBody("Write session details here (e.g., subject name; session location; calibration input parameters; calibration curve's slope, y-intercept, correlation, etc.)", isHTML: false)
+        print(self.patientID)
+        mailComposerVC.setSubject("Session Results for patient " + self.patientID + " - "+stringDate)
+        mailComposerVC.setMessageBody("Write session details here (e.g., subject name; session location; calibration input parameters; calibration curve's slope, y-intercept, correlation, etc.)" + "\n"
+            + "Average stable concentration: " + String(describing: self.averageStableArray) + "\n"
+            + "Average measurement concentration: " + String(describing: self.averageMeasurementArray), isHTML: false)
         
         tupleMaxArrayString = [String](repeating: "", count: maxSize+2)
         
@@ -443,11 +587,19 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
         return mailComposerVC
     }
     
+    /**
+     * Handle errors for mail.
+     *
+     */
     func showSendMailErrorAlert() {
         let alertController = UIAlertController(title: "Error", message: "Device cannot send email ", preferredStyle: .alert)
         self.present(alertController, animated: true, completion:nil)
     }
     
+    /**
+     * Print values based on the result of the email.
+     *
+     */
     func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
         switch result.rawValue {
         case MFMailComposeResult.cancelled.rawValue:
@@ -467,13 +619,13 @@ class ExperimentViewController: UIViewController, CBCentralManagerDelegate, CBPe
     
     // -------CHARTS -----
     
-    // Function containing chart configuration based on the third-party Charts framework. These can be changed to your convenience.
+    /**
+     * Function to configure the chart onto the view.
+     *
+     */
     func configureChart() {
         //Chart config
         experimentChartView.leftAxis.axisMinimum = 0
-        //experimentChartView.leftAxis.labelCount = 5
-        //experimentChartView.leftAxis.valueFormatter = NSNumberFormatter()
-        //experimentChartView.leftAxis.valueFormatter?.minimumFractionDigits = 1
         experimentChartView.leftAxis.valueFormatter = DefaultAxisValueFormatter(decimals: 1)
         experimentChartView.chartDescription?.text = ""
         experimentChartView.noDataText = "No Data"

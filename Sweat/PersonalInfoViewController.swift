@@ -12,13 +12,12 @@ import UIKit
 
 class PersonalInfoViewController: UIViewController {
     
-    var patient = Patient()
+    var patientID: String!
     @IBOutlet weak var idTextField: UITextField!
     @IBOutlet weak var submitButton: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
     }
     
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
@@ -34,20 +33,15 @@ class PersonalInfoViewController: UIViewController {
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        updatePatientID();
+        self.updatePatientID();
         let DestViewController = segue.destination as! CalibrateMenuViewController
-        DestViewController.patient = patient
-    }
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
+        DestViewController.patientID = self.patientID
     }
     
     /* -- Custom functions -- */
     
     func updatePatientID() {
-        patient.ID = idTextField.text!
+        self.patientID = self.idTextField.text!
     }
     
 

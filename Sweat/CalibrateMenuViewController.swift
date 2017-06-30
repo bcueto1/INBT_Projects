@@ -11,7 +11,7 @@ import UIKit
 
 class CalibrateMenuViewController: UIViewController {
     
-    var patient = Patient()
+    var patientID: String!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -20,15 +20,15 @@ class CalibrateMenuViewController: UIViewController {
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if (segue.identifier == "printValueSegue") {
             let DestViewController = segue.destination as! CalibrateViewController
-            DestViewController.patient = patient
+            DestViewController.patientID = self.patientID
         }
         if (segue.identifier == "realTimeSegue") {
             let DestViewControllerTwo = segue.destination as! RealTimeCalibrateViewController
-            DestViewControllerTwo.patient = patient
+            DestViewControllerTwo.patientID = self.patientID
         }
         if (segue.identifier == "loadCalibrateSegue") {
             let DestViewControllerThree = segue.destination as! LoadCalibrateViewController
-            DestViewControllerThree.patient = patient
+            DestViewControllerThree.patientID = self.patientID
         }
     }
     

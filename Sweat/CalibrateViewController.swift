@@ -21,7 +21,7 @@ class CalibrateViewController: UIViewController, UITextFieldDelegate {
     @IBOutlet weak var voltTextField: UITextField!
     
     let calibration = Calibration()
-    var patient = Patient()
+    var patientID: String!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -90,13 +90,12 @@ class CalibrateViewController: UIViewController, UITextFieldDelegate {
         updateCalibration()
         
         if (segue.identifier == "calibrateSegue") {
-            // Get a reference to the destination view controller
             let tabBarViewController = segue.destination as! UITabBarController
             let firstViewController = tabBarViewController.viewControllers![0] as! CalibrationViewController
             let secondViewController = tabBarViewController.viewControllers![1] as! ExperimentViewController
             firstViewController.calibration = calibration
             secondViewController.calibration = calibration
-            secondViewController.patient = patient
+            secondViewController.patientID = self.patientID
         }
     }
     

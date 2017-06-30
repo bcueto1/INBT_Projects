@@ -13,20 +13,19 @@ import Charts
 
 class CalibrationViewController: UIViewController, ChartViewDelegate {
     
-    // ----- Classes, properties, and built in functions -----
-    // Label variable for calibration fit
+    /** Classes, properties, and built in functions */
     @IBOutlet weak var equationLabel: UILabel!
-    //Label variable for coefficent of determination
     @IBOutlet weak var rsquaredLabel: UILabel!
-    //View variable for plto showing claibration curve
     @IBOutlet weak var calibrationChartView: LineChartView!
-    //Label variable for voltage y-axis label
     @IBOutlet weak var voltageLabel: UILabel!
     
     var calibration: Calibration?
     var experiment = Experiment()
     
-    // Built-in function to do stuff when view is loaded.
+    /**
+     * Built-in function to do stuff when view is loaded.
+     *
+     */
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
@@ -57,7 +56,7 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         let rSquaredRounded = round(1000 * calibration!.rSquared) / 1000
         
         // Assigns parameters to equation and rsquared text labels.
-        equationLabel.text = "v = \(slopeRounded)c\(yintRounded)"
+        equationLabel.text = "v = \(slopeRounded)c + \(yintRounded)"
         rsquaredLabel.text = "R"+"\u{00B2}"+" = "+"\(rSquaredRounded)"
         
         // Shares experiment (instance of Experiment class) between CalibrationViewController and ExperimentViewController.
@@ -66,33 +65,33 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         experimentViewControllerReference.experiment = self.experiment  //shared model
         
         //Function configures chart.
-        configureChart()
+        self.configureChart()
         
         // -------- DISPLAYING THE CALIBRATION PLOT -------
         
         //creates an array of data entries to contain volt values
-        var yValues : [ChartDataEntry] = [ChartDataEntry]()
+        var chartValues : [ChartDataEntry] = [ChartDataEntry]()
         
         //Assigns volt values of calibration to variable yValues.
         for i in 0..<voltValues.count {
-            yValues.append(ChartDataEntry(x: concValuesScaled[i], y: voltValues[i]))
+            chartValues.append(ChartDataEntry(x: concValuesScaled[i], y: voltValues[i]))
         }
         
         //create a data set with array of voltage values.
-        let ySet: LineChartDataSet = LineChartDataSet(values: yValues, label: "")
+        let chartSet: LineChartDataSet = LineChartDataSet(values: chartValues, label: "")
         
         // line chart configuration.
-        ySet.axisDependency = .left
-        ySet.setColor(UIColor.blue)
-        ySet.setCircleColor(UIColor.blue)
-        ySet.lineWidth = 2.0
-        ySet.circleRadius = 3.0
-        ySet.drawCircleHoleEnabled = false
-        ySet.drawFilledEnabled = false
+        chartSet.axisDependency = .left
+        chartSet.setColor(UIColor.blue)
+        chartSet.setCircleColor(UIColor.blue)
+        chartSet.lineWidth = 2.0
+        chartSet.circleRadius = 3.0
+        chartSet.drawCircleHoleEnabled = false
+        chartSet.drawFilledEnabled = false
         
         //create an array to store LineChartDataSets
         var dataSets : [LineChartDataSet] = [LineChartDataSet]()
-        dataSets.append(ySet)
+        dataSets.append(chartSet)
 
         //Data object that has all data corresponding to the calibration plot
         let data: LineChartData = LineChartData(dataSets: dataSets)
@@ -103,7 +102,10 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
     
     // ------ SEGUE FUNCTIONS -----
     
-    // Function determines whether the segue with the specified identifier should be performed.
+    /**
+     * Function determines whether the segue with the specified identifier should be performed.
+     *
+     */
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         // calibrationAlert1 variable corresponding to instructions if current experiment is running and the user wants to go back to the calibrate view.
         let calibrationAlert1 = UIAlertController(title: "Alert", message: "Please stop current experiment to start new session or view last session", preferredStyle: .alert)
@@ -117,7 +119,6 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
         calibrationAlert2.addAction(yesAction)
         calibrationAlert2.addAction(cancelAction)
         
-        // Conditions for the two different alerts to pop up for user based on launchBool (a property of the Experiment class)
         if  experiment.launchBool == true {
             present(calibrationAlert1, animated: true, completion: nil)
             return false
@@ -131,7 +132,10 @@ class CalibrationViewController: UIViewController, ChartViewDelegate {
     
     // -------- CHARTS ----------
     
-    // Function contiaining chart configuration based on the third-party Charts framework.
+    /**
+     * Function contiaining chart configuration based on the third-party Charts framework.
+     *
+     */
     func configureChart() {
         //Chart config
         calibrationChartView.leftAxis.axisMinimum = 0

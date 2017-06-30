@@ -7,8 +7,11 @@
 //
 
 import Foundation
-import UIKit
 
+/**
+ * Calibration model with volt and concetration values.
+ *
+ */
 class Calibration: NSObject {
     
     // ---------- CUSTOM PROPERTIES ----------
@@ -30,6 +33,10 @@ class Calibration: NSObject {
 
     // ---------- CUSTOM FUNCTIONS ----------
     
+    /**
+     * Check to see if the values in the calibration model are valid.
+     *
+     */
     func valuesChecker (textField: String?) -> (check: Bool, valuesOptional: [Double?], values: [Double]) {
         let StringValues = textField!.components(separatedBy: " ")
         let DoubleValuesOptional = StringValues.map({NumberFormatter().number(from: $0)?.doubleValue})
@@ -38,11 +45,19 @@ class Calibration: NSObject {
         return (checkCalibration, DoubleValuesOptional, DoubleValues)
     }
     
+    /**
+     * Convert concentration to log concentration.
+     *
+     */
     func convertConcToLogConc(standard: Double, concentration: [Double]) -> [Double] {
         let concValuesScaled = concentration.map({log10($0 / standard)})
         return concValuesScaled
     }
     
+    /**
+     * Get the least squares regression for the calibration.
+     *
+     */
     func leastSquaresRegression(concentration: [Double], voltage: [Double]) -> (slope: Double, yint: Double, rCorrelation: Double, rSquared: Double) {
         let N = Double(concentration.count)
         let compoundXY = zip(concentration, voltage)

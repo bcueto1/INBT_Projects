@@ -11,31 +11,37 @@ import UIKit
 import CoreBluetooth
 import Charts
 
+/**
+ *  Calibrate the system in real time.
+ *
+ */
 class RealTimeCalibrateViewController: UIViewController,
     CBCentralManagerDelegate, CBPeripheralDelegate {
     
     
-    /* -- Charts Related Outlets -- */
+    /** Charts Related Outlets. */
     @IBOutlet weak var realTimeChart: LineChartView!
     @IBOutlet weak var voltChartLabel: UILabel!
     
     
-    /* -- Declare Variables and Outlets -- */
+    /** -- Declare Variables and Outlets. */
     let calibration = Calibration()
-    var patient = Patient()
+    var patientID: String!
     var dataCounter : Int = 0
     var concStandardValue: Double = 0
     var concValue: Double = 0
     var voltValue: Double = 0
     var initialMinutes: Double = 0
     var voltArray = [Double]()
+    var stableVoltArray = [Double]()
     var concStandardValueString: String = ""
     var concValueString: String = ""
     var voltValueString: String = ""
     var timeArray = [Double]()
     var minutesArray = [String]()
     var timeForLoop: Double = 60.0
-    var timer: Timer?
+    var timeCounter: Double = 0.0
+    var range: Double = 10.0
     var voltTimer: Timer?
     var bluetoothBool = false
     var thisCharacteristic: CBCharacteristic?
@@ -53,41 +59,43 @@ class RealTimeCalibrateViewController: UIViewController,
     @IBOutlet weak var refValueTextField: UITextField!
     @IBOutlet weak var enterRefValue: UIButton!
     @IBOutlet weak var statusLabel: UILabel!
+    @IBOutlet weak var rangeLabel: UILabel!
+    @IBOutlet weak var enterRangeValue: UITextField!
+    @IBOutlet weak var timeLabel: UILabel!
+    @IBOutlet weak var enterTimeField: UITextField!
 
+    
     var launchBool: Bool = false {
         didSet {
             if launchBool == true {
-                startRun.setTitle("Running", for: .normal)
-                centralManager = CBCentralManager(delegate: self, queue: nil)
+                self.startRun.setTitle("Running", for: .normal)
+                self.centralManager = CBCentralManager(delegate: self, queue: nil)
+                self.startTime()
             } else {
                 if self.sensorPeripheral != nil {
-                    stopScan()
-                    startRun.setTitle("Start", for: .normal)
+                    self.stopScan()
+                    self.startRun.setTitle("Start", for: .normal)
                     self.sensorPeripheral?.setNotifyValue(false, for: thisCharacteristic!)
                     self.centralManager.cancelPeripheralConnection(sensorPeripheral!)
-                    getVoltValue()
-                    voltLabel.text = String(voltValue)
-                    controlView.backgroundColor = UIColor.green
-                    controlViewLabel.text = "READY"
-                } else if timer != nil {
-                    stopScan()
-                    startRun.setTitle("Start", for: .normal)
-                    self.statusLabel.text = "Disconnected"
+                    self.getVoltValue()
+                    self.voltLabel.text = (NSString(format: "%.2f", voltValue) as String)
+                    self.controlView.backgroundColor = UIColor.green
+                    self.controlViewLabel.text = "READY"
                 } else {
-                    stopScan()
-                    startRun.setTitle("Start", for: .normal)
+                    self.stopScan()
+                    self.startRun.setTitle("Start", for: .normal)
                     self.statusLabel.text = "Peripheral not advertising properly, try again"
                 }
             }
         }
     }
-    
-    func falseLaunch() {
-        launchBool = false;
-    }
 
     //--- Main/Segue functions -----//
     
+    /**
+     * When view loads, set the hiddens and configure the chart.
+     *
+     */
     override func viewDidLoad() {
         super.viewDidLoad()
         self.hideKeyboardWhenTappedAround()
@@ -96,36 +104,45 @@ class RealTimeCalibrateViewController: UIViewController,
         configureChart()
     }
 
+    /**
+     * Allow user to go to another view controller.
+     *
+     */
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
-        let idAlert = UIAlertController(title: "Alert", message: "Not enough data entered!", preferredStyle: .alert)
-        let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
-        idAlert.addAction(okAction)
-        if (dataCounter < 3) {
-            present(idAlert, animated: true, completion: nil)
-            return false
-        } else {
-            return true
+        if identifier == "realtimeToCalibration" {
+            let idAlert = UIAlertController(title: "Alert", message: "Not enough data entered!", preferredStyle: .alert)
+            let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+            idAlert.addAction(okAction)
+            if (dataCounter < 3) {
+                present(idAlert, animated: true, completion: nil)
+                return false
+            } else {
+                return true
+            }
         }
+        return true
     }
     
+    /**
+     * Prepare for segue.
+     *
+     */
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        updateCalibration()
-        if (segue.identifier == "calibrateSegue") {
-            // Get a reference to the destination view controller
+        self.updateCalibration()
+        if (segue.identifier == "realtimeToCalibration") {
             let tabBarViewController = segue.destination as! UITabBarController
             let firstViewController = tabBarViewController.viewControllers![0] as! CalibrationViewController
             let secondViewController = tabBarViewController.viewControllers![1] as! ExperimentViewController
             firstViewController.calibration = calibration
             secondViewController.calibration = calibration
-            secondViewController.patient = patient
+            secondViewController.patientID = self.patientID
         }
     }
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-    }
-    
-    /* ----- UI Functions ------ */
+
+    /**
+     * Handle enterring the reference concentration.  Send an error if none is sent over.
+     *
+     */
     @IBAction func enterRefValuePressed(_ sender: Any) {
         if Double(refValueTextField.text!) != nil {
             concStandardValue = Double(refValueTextField.text!)!
@@ -139,16 +156,27 @@ class RealTimeCalibrateViewController: UIViewController,
         }
     }
 
+    /**
+     * Handle stuff when start is pressed.  This is when the actual calibration and bluetooth stuff shoudl come on.
+     *
+     */
     @IBAction func startisPressed(_ sender: Any) {
-        if Double(enterConcValueTextField.text!) != nil {
-            voltArray.removeAll()
-            timeArray.removeAll()
-            initialMinutes = 0
-            controlView.backgroundColor = UIColor.red
-            controlViewLabel.text = "WAIT"
-            concValue = Double(enterConcValueTextField.text!)!
-            launchBool = true
-            startTime()
+        if (Double(self.enterConcValueTextField.text!) != nil) {
+            if (Double(self.enterRangeValue.text!) != nil) {
+                self.range = Double(self.enterRangeValue.text!)!
+            }
+            if (Double(self.enterTimeField.text!) != nil) {
+                self.timeForLoop = Double(self.enterTimeField.text!)!
+            }
+            self.timeCounter = 0.0
+            self.stableVoltArray.removeAll()
+            self.voltArray.removeAll()
+            self.timeArray.removeAll()
+            self.initialMinutes = 0
+            self.controlView.backgroundColor = UIColor.red
+            self.controlViewLabel.text = "WAIT"
+            self.concValue = Double(self.enterConcValueTextField.text!)!
+            self.launchBool = !self.launchBool
         } else {
             let alert = UIAlertController(title: "Alert", message: "Please enter valid concentration", preferredStyle: .alert)
             let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
@@ -157,6 +185,10 @@ class RealTimeCalibrateViewController: UIViewController,
         }
     }
 
+    /**
+     * When enter is pressed, enter the values into the concentration value string and volt value string.
+     *
+     */
     @IBAction func enterIsPressed(_ sender: Any) {
         if (controlView.backgroundColor == UIColor.green) {
             dataCounter += 1
@@ -167,6 +199,8 @@ class RealTimeCalibrateViewController: UIViewController,
             concValue = 0;
             voltValue = 0;
             voltArray.removeAll()
+            self.range = 10.0
+            self.timeForLoop = 60.0
             controlView.backgroundColor = UIColor.red
             controlViewLabel.text = ""
         } else {
@@ -179,93 +213,188 @@ class RealTimeCalibrateViewController: UIViewController,
 
     /* ----- CUSTOM FUNCTIONS ------ */
 
-    // Gets the volt value
+    /**
+     * Gets the voltage value.
+     *
+     */
     func getVoltValue() {
         var average: Double = 0
-        for volt in voltArray {
+        for volt in self.stableVoltArray {
             average += volt
         }
-        voltValue = average / Double(voltArray.count)
+        self.voltValue = average / Double(self.stableVoltArray.count)
     }
 
-    // Updates the calibration information
+    /**
+     * Updates the calibration information.
+     *
+     */
     func updateCalibration() {
-        calibration.concStandardText = concStandardValueString
-        calibration.concStandard = concStandardValue
-        calibration.concText = concValueString.substring(to: concValueString.endIndex)
-        calibration.voltText = voltValueString.substring(to: voltValueString.endIndex)
+        self.calibration.concStandardText = self.concStandardValueString
+        self.calibration.concStandard = self.concStandardValue
+        self.calibration.concText = self.concValueString.substring(to: self.concValueString.endIndex)
+        self.calibration.voltText = self.voltValueString.substring(to: self.voltValueString.endIndex)
     }
     
-    // Set hiddens
+    /**
+     * Set hiddens before ref concentration value is entered.
+     *
+     */
     func setHiddens() {
-        enterConcValue.isHidden = true
-        enterConcValueTextField.isHidden = true
-        enterVoltLabel.isHidden = true
-        voltView.isHidden = true
-        voltLabel.isHidden = true
-        startRun.isHidden = true
-        controlView.isHidden = true
-        controlViewLabel.isHidden = true
-        enterRun.isHidden = true
-        calibrateButton.isHidden = true
-        refValueLabel.isHidden = false
-        refValueTextField.isHidden = false
-        enterRefValue.isHidden = false
-        realTimeChart.isHidden = true
-        voltChartLabel.isHidden = true
+        self.enterConcValue.isHidden = true
+        self.enterConcValueTextField.isHidden = true
+        self.enterVoltLabel.isHidden = true
+        self.voltView.isHidden = true
+        self.voltLabel.isHidden = true
+        self.startRun.isHidden = true
+        self.controlView.isHidden = true
+        self.controlViewLabel.isHidden = true
+        self.enterRun.isHidden = true
+        self.calibrateButton.isHidden = true
+        self.refValueLabel.isHidden = false
+        self.refValueTextField.isHidden = false
+        self.enterRefValue.isHidden = false
+        self.realTimeChart.isHidden = true
+        self.voltChartLabel.isHidden = true
+        self.rangeLabel.isHidden = true
+        self.enterRangeValue.isHidden = true
+        self.enterTimeField.isHidden = true
+        self.timeLabel.isHidden = true
     }
     
-    // Set hiddens
+    /**
+     * Set things not hidden after ref concentration value is entered.
+     *
+     */
     func setNotHiddens() {
-        enterConcValue.isHidden = false
-        enterConcValueTextField.isHidden = false
-        enterVoltLabel.isHidden = false
-        voltView.isHidden = false
-        voltLabel.isHidden = false
-        startRun.isHidden = false
-        controlView.isHidden = false
-        controlViewLabel.isHidden = false
-        enterRun.isHidden = false
-        calibrateButton.isHidden = false
-        refValueLabel.isHidden = true
-        refValueTextField.isHidden = true
-        enterRefValue.isHidden = true
-        realTimeChart.isHidden = false
-        voltChartLabel.isHidden = false
+        self.enterConcValue.isHidden = false
+        self.enterConcValueTextField.isHidden = false
+        self.enterVoltLabel.isHidden = false
+        self.voltView.isHidden = false
+        self.voltLabel.isHidden = false
+        self.startRun.isHidden = false
+        self.controlView.isHidden = false
+        self.controlViewLabel.isHidden = false
+        self.enterRun.isHidden = false
+        self.calibrateButton.isHidden = false
+        self.refValueLabel.isHidden = true
+        self.refValueTextField.isHidden = true
+        self.enterRefValue.isHidden = true
+        self.realTimeChart.isHidden = false
+        self.voltChartLabel.isHidden = false
+        self.rangeLabel.isHidden = false
+        self.enterRangeValue.isHidden = false
+        self.enterTimeField.isHidden = false
+        self.timeLabel.isHidden = false
+        
     }
     
-    // The timer for the calibration
+    /**
+     * Checks the volt value.  If new value is in the given range, add it to stable volt array.
+     * Still add to general volt array to display on graph,.
+     *
+     */
+    func checkVoltValue(voltTest: Double) {
+        if self.stableVoltArray.count >= 1 {
+            let previousValue = self.stableVoltArray[self.stableVoltArray.count - 1]
+            let difference = abs(previousValue - voltTest)
+            print(difference)
+            if (difference < self.range) {
+                self.stableVoltArray.append(voltTest)
+            } else {
+                self.stableVoltArray.removeAll()
+                self.timeCounter = 0.0
+            }
+        } else if self.stableVoltArray.count == 0 {
+            self.stableVoltArray.append(voltTest)
+        }
+        
+        print(self.timeCounter)
+        self.voltArray.append(voltTest)
+        self.displayPlot()
+    }
+    
+    /**
+     * Start the timer.  Checks every 1 second and looks at checkFullTime, which increments the time counter and checks
+     * if it is 60 seconds.
+     *
+     */
     func startTime() {
-        voltTimer = Timer.scheduledTimer(timeInterval: timeForLoop, target: self, selector: #selector(falseLaunch), userInfo: nil, repeats: true)
+        self.voltTimer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(self.checkFullTime), userInfo: nil, repeats: true)
     }
     
-    // If requirements are not settled, add another 60 seconds
-    func restartTime() {
-        timeForLoop += 60
+    /**
+     * Checks the to see if the time counter is equal to 60.  Increments beforehand.
+     *
+     */
+    func checkFullTime() {
+        self.timeCounter = self.timeCounter + 1.0
+        if (self.timeCounter == self.timeForLoop) {
+            self.falseLaunch()
+            
+        }
+    }
+    
+    /**
+     * Set the launch to false, which handles stopping the bluetooth and
+     * stopping the run altogether.
+     *
+     */
+    func falseLaunch() {
+        self.launchBool = false;
+    }
+    
+    /**
+     * Gets the time to append to time arrays.
+     *
+     */
+    func getTimeForArray() {
+        let date = NSDate()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "HH:mm:ss:SSS"
+        let timeStamp = dateFormatter.string(from: date as Date)
+        let timeStampStringArray = timeStamp.components(separatedBy: ":")
+        let timeStampDoubleOptionalArray = timeStampStringArray.map({NumberFormatter().number(from: $0)?.doubleValue})
+        let timeStampDoubleArray = timeStampDoubleOptionalArray.flatMap{$0}
+        let seconds = timeStampDoubleArray[2] + timeStampDoubleArray[3]/1000
+        let minutes = timeStampDoubleArray[0]*60 + timeStampDoubleArray[1] + seconds/60
+        self.timeArray.append(minutes-initialMinutes)
+        if self.timeArray.count == 1 {
+            self.initialMinutes = self.timeArray[0]
+            self.timeArray[0] = minutes - self.initialMinutes
+        }
+        self.minutesArray.append(String(round(100*(minutes - self.initialMinutes)/100)))
     }
 
     /* ----- BLUETOOTH FUNCTIONS ------ */
-    // BLE properties
+    /** BLE properties */
     var centralManager : CBCentralManager!
     var sensorPeripheral : CBPeripheral?
     
-    // Services and characteristics of interest
+    /** Services and characteristics of interest */
     let adcUUID = "A6322521-EB79-4B9F-9152-19DAA4870418"
     let voltUUID = "F90EA017-F673-45B8-B00B-16A088A2ED62"
     
+    
+    /**
+     * Stops the scan of the experiment.
+     *
+     */
     func stopScan() {
         self.centralManager.stopScan()
-        timer?.invalidate()
-        timer = nil
+        self.voltTimer?.invalidate()
+        self.voltTimer = nil
     }
     
-    // Check status of BLE hardware
+    /**
+     * Check status of BLE hardware.
+     *
+     */
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == CBManagerState.poweredOn && launchBool == true {
             // Scan for peripherals if BLE is turned on
             central.scanForPeripherals(withServices: nil, options: nil)
             self.statusLabel.text = "Searching for BLE Devices"
-            //timer = Timer.scheduledTimer(timeInterval: 20.0, target: self, selector: #selector(stopScan), userInfo: nil, repeats: true)
             print("still running")
         }
         else {
@@ -273,7 +402,10 @@ class RealTimeCalibrateViewController: UIViewController,
         }
     }
     
-    // Check out the discovered peripherals to find sensor
+    /**
+     * Check out the discovered peripherals to find sensor.
+     *
+     */
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         let deviceName = "BlueVolt"
         let nameOfDeviceFound = peripheral.name
@@ -292,14 +424,20 @@ class RealTimeCalibrateViewController: UIViewController,
     }
     
     
-    // Discover services of the peripheral
+    /**
+     * Discover services of the peripheral.
+     *
+     */
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         self.statusLabel.text = "Discovering peripheral services"
         peripheral.discoverServices(nil)
     }
     
     
-    // Check if the service discovered is a valid adc service
+    /**
+     * Check if the service discovered is a valid adc service.
+     *
+     */
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         self.statusLabel.text = "Looking at peripheral services"
         for service in peripheral.services! {
@@ -315,17 +453,17 @@ class RealTimeCalibrateViewController: UIViewController,
         }
     }
     
-    
-    //Look for valid volt characteristics
+    /**
+     * Look for valid characteristics.
+     *
+     */
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         self.statusLabel.text = "Looking at the service's characteristics"
 
         // check the uuid of each characteristic to find config and data characteristics
         for characteristic in service.characteristics! {
             thisCharacteristic = characteristic as CBCharacteristic
-            // check for data characteristic
             if String(describing: thisCharacteristic!.uuid) == voltUUID {
-                // Enable Sensor Notification
                 self.sensorPeripheral?.setNotifyValue(true, for: thisCharacteristic!)
                 print("Works!!!")
             }
@@ -333,58 +471,49 @@ class RealTimeCalibrateViewController: UIViewController,
         }
     }
     
-    // Get data values when they are updated
+    /**
+     * Gets data values when they are updated.
+     *
+     */
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         
-        statusLabel.text = "Connected"
+        self.statusLabel.text = "Connected"
         
-        if String(describing: characteristic.uuid) == voltUUID {
+        if String(describing: characteristic.uuid) == self.voltUUID {
             
-            //Get time
-            let date = NSDate()
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "HH:mm:ss:SSS"
-            let timeStamp = dateFormatter.string(from: date as Date)
-            let timeStampStringArray = timeStamp.components(separatedBy: ":")
-            let timeStampDoubleOptionalArray = timeStampStringArray.map({NumberFormatter().number(from: $0)?.doubleValue})
-            let timeStampDoubleArray = timeStampDoubleOptionalArray.flatMap{$0}
-            // Convert to minutes
-            let seconds = timeStampDoubleArray[2] + timeStampDoubleArray[3]/1000
-            let minutes = timeStampDoubleArray[0]*60 + timeStampDoubleArray[1] + seconds/60
-            timeArray.append(minutes-initialMinutes)
-            if timeArray.count == 1 {
-                initialMinutes = timeArray[0]
-                timeArray[0] = minutes-initialMinutes
-            }
-            minutesArray.append(String(round(100*(minutes-initialMinutes)/100)))
+            self.getTimeForArray()
 
             // Convert NSData to array of signed 16 bit values
             let dataBytes = characteristic.value!
-            let dataLength = dataBytes.count
-            var dataArray = [UInt8](repeating: 0, count: dataLength)
-            dataBytes.copyBytes(to: &dataArray, count: dataLength * MemoryLayout<Int16>.size)
+            let dataLength = dataBytes.count / MemoryLayout<UInt8>.size
+            var dataArray: [UInt8] = [UInt8](repeating: 0, count: dataLength)
+            dataBytes.copyBytes(to: &dataArray, count: dataLength * MemoryLayout<UInt8>.size)
             
-            let voltsMeasurement = Double(dataArray[0])
-            if voltArray.count > 1 {
-                if ((voltArray[voltArray.count - 1]) - voltsMeasurement > 1) || (voltsMeasurement - voltArray[voltArray.count - 1] > 1) {
-                        voltArray.removeAll()
-                        restartTime()
-                }
+            let u16 = UnsafePointer(dataArray).withMemoryRebound(to: UInt16.self, capacity: 1) {
+                $0.pointee
             }
-            voltArray.append(voltsMeasurement)
-            displayPlot()
-
+            
+            let voltsMeasurement = Double(u16)
+            let voltsMeasurementTest = voltsMeasurement / (5.78)
+            
+            self.checkVoltValue(voltTest: voltsMeasurementTest)
         }
     }
     
-    // If disconnected, show disconnected
+    /**
+     * If the bluetooth is disconnected, update the status label to show that it is disconnected.
+     * 
+     */
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         self.statusLabel.text = "Disconnected"
     }
     
     // -------- CHARTS ----------
     
-    // Function handling the display of the plot for the chart
+    /**
+     * Function handling the display of the plot for the chart.
+     *
+     */
     func displayPlot() {
         var chartValues : [ChartDataEntry] = [ChartDataEntry]()
         
@@ -411,21 +540,22 @@ class RealTimeCalibrateViewController: UIViewController,
     }
     
     
-    // Function contiaining chart configuration based on the third-party Charts framework.
+    /**
+     * Function contiaining chart configuration based on the third-party Charts framework.
+     *
+     */
     func configureChart() {
-        //Chart config
-        realTimeChart.leftAxis.axisMinimum = 0
-        realTimeChart.xAxis.axisMinimum = 0
-        realTimeChart.leftAxis.valueFormatter = DefaultAxisValueFormatter(decimals: 1)
-        realTimeChart.chartDescription?.text = ""
-        realTimeChart.noDataText = "No Data"
-        realTimeChart.dragEnabled = true
-        realTimeChart.rightAxis.enabled = false
-        realTimeChart.doubleTapToZoomEnabled = true
-        realTimeChart.pinchZoomEnabled = true
-        realTimeChart.legend.enabled = false
-        realTimeChart.drawBordersEnabled = true
-        //Configure xAxis
+        self.realTimeChart.leftAxis.axisMinimum = 0
+        self.realTimeChart.xAxis.axisMinimum = 0
+        self.realTimeChart.leftAxis.valueFormatter = DefaultAxisValueFormatter(decimals: 1)
+        self.realTimeChart.chartDescription?.text = ""
+        self.realTimeChart.noDataText = "No Data"
+        self.realTimeChart.dragEnabled = true
+        self.realTimeChart.rightAxis.enabled = false
+        self.realTimeChart.doubleTapToZoomEnabled = true
+        self.realTimeChart.pinchZoomEnabled = true
+        self.realTimeChart.legend.enabled = false
+        self.realTimeChart.drawBordersEnabled = true
         let chartXAxis = realTimeChart.xAxis as XAxis
         chartXAxis.labelPosition = .bottom
     }

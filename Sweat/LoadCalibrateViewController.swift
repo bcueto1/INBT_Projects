@@ -12,16 +12,11 @@ import UIKit
 class LoadCalibrateViewController: UIViewController {
     
     let calibration = Calibration()
-    var patient = Patient()
+    var patientID: String!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
-    }
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
     
     //Function notifies the view controller that a segue is about to be performed.
@@ -35,7 +30,7 @@ class LoadCalibrateViewController: UIViewController {
             let secondViewController = tabBarViewController.viewControllers![1] as! ExperimentViewController
             firstViewController.calibration = calibration
             secondViewController.calibration = calibration
-            secondViewController.patient = patient
+            secondViewController.patientID = self.patientID
         }
     }
     
